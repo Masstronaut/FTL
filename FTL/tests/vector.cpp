@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <cassert>
+#include <iostream>
 int main() {
 
   ftl::vector<int> vint;
@@ -35,11 +36,21 @@ int main() {
   for (unsigned i{ 0 }; i < vfin.size(); ++i) {
     assert(vfin[i] == 69.420f);
   }
-
+  for (int i{ 0 }; i < 100; ++i) {
+    vfin.push_back(i);
+  }
   std::vector<int> svint{ 5,4,3,2,1 };
 
   vint.swap(svint);
 
+
+  ftl::unordered_vector<int> uiv{ 0,1,2,3,4,5,6,7,8,9 };
+
+  uiv.erase(uiv.begin() + 5, uiv.end()- 2);
+  for (int i{ 0 }; i < 5; ++i) {
+    assert(uiv[i] == i);
+  }
+  uiv.erase(uiv.begin());
 
   return 0;
 }

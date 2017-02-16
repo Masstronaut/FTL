@@ -6,7 +6,7 @@
 #include <iterator> // ::std::reverse_iterator<>
 #include <utility> // ::std::distance
 #include <memory>
-
+#include <cassert>
 
 namespace ftl {
 
@@ -125,8 +125,8 @@ public:
   iterator insert(const_iterator position, value_type &&val);
   iterator insert(const_iterator position, ::std::initializer_list<value_type> il);
 
-  iterator erase(const_iterator position);
-  iterator erase(const_iterator first, const_iterator last);
+  virtual iterator erase(const_iterator position);
+  virtual iterator erase(const_iterator first, const_iterator last);
 
   template<typename Vector>
   void swap(Vector &other);
@@ -141,8 +141,8 @@ public:
   reference front() const;
   reference back() const;
   pointer data() const noexcept;
-  pointer at(size_type n) noexcept;
-  const_pointer at(size_type n) const noexcept;
+  reference at(size_type n) noexcept;
+  const_reference at(size_type n) const noexcept;
   reference operator[](size_type n);
   const_reference operator[](size_type n) const;
 
@@ -159,7 +159,7 @@ public:
   allocator_type get_allocator() const noexcept;
 
 protected:
-  vector(iterator Begin, iterator End, size_type Capacity, allocator_type alloc = default_allocator{});
+  vector(iterator Begin, iterator End, size_type Capacity, const allocator_type &alloc = default_allocator<value_type>{});
 
   virtual void grow();
   bool full() const noexcept;
@@ -491,25 +491,43 @@ typename vector<T, Alloc>::iterator vector<T, Alloc>::erase(const_iterator first
     m_alloc.destroy(follow);
   }
   m_end = new_end;
+  return const_cast<iterator>(first);
 }
 
 template<typename T, typename Alloc>
 template<typename Vector>
 void vector<T, Alloc>::swap(Vector &other) {
   static_assert(::std::is_same<value_type, typename Vector::value_type>::value, "Swapping the elements of two vectors requires that they have the same value type.");
-  
-  auto& longer_vector = [this, &other] { if (this->size() > other.size()) return *this; else return other; };
-  auto& shorter_vector = [this, &other] { if (this->size() < other.size()) return *this; else return other; };
-  const size_type max_size = longer_vector.size();
-  int size_diff = { this->size() - other.size() };
-  if (size_diff < 0) size_diff = -size_diff;
-  for (size_type i{ 0 }; i < max_size - size_diff; ++i) {
-    ::std::swap(this->at(i), other.at(i));
+
+  if (size() > other.size()) {
+    size_type _diff{ size() - other.size() };
+    size_type _count{ 0 };
+    for (; _count < size() - _diff; ++_count) {
+      std::swap(this->at(_count), other.at(_count));
+    }
+    size_type _new_end{ _count };
+    for (; _count < size(); ++_count) {
+      other.emplace_back(std::move(this->at(_count)));
+    }
+    while (other.size() > _count) {
+      pop_back();
+    }
   }
-  for (size_type i{ max_size - size_diff }; i < max_size; ++i) {
-    shorter_vector.emplace_back(::std::move(longer_vector[i]));
+  else { //if (other.size() > size()) {
+    size_type _diff{ other.size() - size() };
+    size_type _count{ 0 };
+    for (; _count < other.size() - _diff; ++_count) {
+      std::swap(this->at(_count), other.at(_count));
+    }
+    size_type _new_end{ _count };
+    for (; _count < other.size(); ++_count) {
+      emplace_back(std::move(other.at(_count)));
+    }
+    while (other.size() > _count) {
+      pop_back();
+    }
   }
-  longer_vector.erase(longer_vector.begin() + max_size - size_diff, longer_vector.end());
+
 }
 template<typename T, typename Alloc>
 void vector<T, Alloc>::swap(vector<T, Alloc> &other) {
@@ -555,14 +573,14 @@ typename vector<T, Alloc>::pointer vector<T, Alloc>::data() const noexcept {
   return m_begin;
 }
 template<typename T, typename Alloc>
-typename vector<T, Alloc>::pointer vector<T, Alloc>::at(size_type n) noexcept {
-  if (m_begin + n < m_end) return m_begin + n;
-  else return nullptr;
+typename vector<T, Alloc>::reference vector<T, Alloc>::at(size_type n) noexcept {
+  assert(n < size());
+  return *(m_begin + n);
 }
 template<typename T, typename Alloc>
-typename vector<T, Alloc>::const_iterator vector<T, Alloc>::at(size_type n) const noexcept {
-  if (m_begin + n < m_end) return m_begin + n;
-  else return nullptr;
+typename vector<T, Alloc>::const_reference vector<T, Alloc>::at(size_type n) const noexcept {
+  assert(n < size());
+  return *(m_begin + n);
 }
 template<typename T, typename Alloc>
 typename vector<T, Alloc>::reference vector<T, Alloc>::operator[](size_type n) {
@@ -618,15 +636,16 @@ void inline_vector<T, N, Alloc>::reserve(size_type elements) {
   }
   else {
     // If the current buffer isn't the inline buffer, we can just use the default grow() method.
-    vector<T, Alloc>::grow();
+    vector<T, Alloc>::reserve(elements);
   }
 }
 
-template<typename T, typename Comparator, typename Alloc = default_allocator<T>>
+template<typename T, typename Alloc = default_allocator<T>>
 class unordered_vector : public vector<T, Alloc> {
 public:
   using iterator = typename vector<T, Alloc>::iterator;
-
+  
+  using vector<T, Alloc>::vector;
   iterator erase(typename vector<T, Alloc>::const_iterator position) override;
   iterator erase(typename vector<T, Alloc>::const_iterator first, typename vector<T, Alloc>::const_iterator last) override;
 
@@ -635,38 +654,39 @@ public:
 
 
 template<typename T, typename Alloc>
-typename vector<T, Alloc>::iterator erase(typename vector<T, Alloc>::const_iterator position) {
+typename vector<T, Alloc>::iterator unordered_vector<T, Alloc>::erase(typename vector<T, Alloc>::const_iterator position) {
   iterator it{ const_cast<iterator>(position) };
   if (it != m_end - 1) {
     *it = back();
   }
   pop_back();
-  return position;
+  return const_cast<iterator>(position);
 }
 
 template<typename T, typename Alloc>
-typename vector<T, Alloc>::iterator erase(typename vector<T, Alloc>::const_iterator first, typename vector<T, Alloc>::const_iterator last) {
+typename vector<T, Alloc>::iterator unordered_vector<T, Alloc>::erase(typename vector<T, Alloc>::const_iterator first, typename vector<T, Alloc>::const_iterator last) {
   assert(first >= m_begin && "Iterator out of range.");
   assert(last <= m_end && "Iterator out of range.");
 
-  for (auto it{ first }; it != last; ++it) {
-    erase(it);
+  const iterator temp_end{ const_cast<iterator>(last) }, temp_begin{ const_cast<iterator>(first) };
+  if (temp_end == m_end) {
+    while (m_end >= temp_begin)
+      pop_back();
+    return const_cast<iterator>(first);
   }
-  return position;
-  /*
-  iterator temp_end{ const_cast<iterator>(last) }, temp_begin{ first };
-
-  for (auto it{ first }; it != last && last != m_end; ++it, --last){
+  iterator it{ temp_begin };
+  for (; it != last && last != m_end; ++it){
     *it = back(); 
     pop_back();
   }
-  while (m_end != last) {
+  while (it++ != last) {
     pop_back();
   }
-  return (m_end - 1);
-  */
+  return (temp_begin);
     
 }
+
+
 
 
 }
