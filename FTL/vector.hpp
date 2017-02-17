@@ -39,10 +39,10 @@ public:
   pointer allocate(size_type n, const void * hint = 0) {
     // the default allocator uses the system new and delete implementations.
     // Therefore it can't do anything with the hint pointer.
-    return reinterpret_cast<pointer>(::new char[n * sizeof(value_type)]);
+    return reinterpret_cast<pointer>(::operator new(n * sizeof(value_type)));
   }
-  void deallocate(pointer p, size_type n) { ::delete[] p; }
-  size_type max_size() const noexcept { return ::std::numeric_limits<unsigned>::max(); }
+  void deallocate(pointer p, size_type n) { ::operator delete(reinterpret_cast<void *>(p)); }
+  size_type max_size() const noexcept { return std::numeric_limits<unsigned>::max(); }
   template<typename U, typename... Args>
   void construct(U* p, Args&&... args) {
     ::new (p) U(::std::forward<Args>(args)...);
