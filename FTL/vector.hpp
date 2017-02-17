@@ -41,8 +41,12 @@ public:
     // Therefore it can't do anything with the hint pointer.
     return reinterpret_cast<pointer>(::operator new(n * sizeof(value_type)));
   }
-  void deallocate(pointer p, size_type n) { ::operator delete(reinterpret_cast<void *>(p)); }
-  size_type max_size() const noexcept { return std::numeric_limits<unsigned>::max(); }
+  void deallocate(pointer p, size_type n) { 
+    ::operator delete(reinterpret_cast<void*>(p)); 
+  }
+  size_type max_size() const noexcept { 
+    return ::std::numeric_limits<unsigned>::max(); 
+  }
   template<typename U, typename... Args>
   void construct(U* p, Args&&... args) {
     ::new (p) U(::std::forward<Args>(args)...);
@@ -248,7 +252,10 @@ vector<T, Alloc>::vector(iterator Begin, iterator End, size_type Capacity, const
 template<typename T, typename Alloc>
 vector<T, Alloc>::~vector() {
   clear();
-  delete[] m_begin;
+  m_alloc.deallocate(m_begin, m_capacity);
+  m_begin = nullptr;
+  m_end = nullptr;
+  m_capacity = 0;
 }
 
 // assignment
@@ -482,13 +489,13 @@ typename vector<T, Alloc>::iterator vector<T, Alloc>::erase(const_iterator first
   iterator follow{ const_cast<iterator>(first) };
   iterator lead{ const_cast<iterator>(last) };
 
-  for (; lead != end(); ++lead, ++follow) {
+  for (; lead != end() && follow != last; ++lead, ++follow) {
     m_alloc.destroy(follow);
     m_alloc.construct(follow, ::std::move(*lead));
   }
   iterator new_end{ follow };
-  for (; follow != end(); ++follow) {
-    m_alloc.destroy(follow);
+  while (end() != new_end) {
+    pop_back();
   }
   m_end = new_end;
   return const_cast<iterator>(first);
@@ -539,7 +546,7 @@ void vector<T, Alloc>::swap(vector<T, Alloc> &other) {
 
 template<typename T, typename Alloc>
 void vector<T, Alloc>::clear() noexcept {
-  while (size()) pop_back();
+  while (!this->empty()) pop_back();
 }
 
 template<typename T, typename Alloc>
