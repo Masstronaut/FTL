@@ -11,13 +11,12 @@
 #include <cassert>
 #include <algorithm> // rotate
 namespace ftl {
-
   // vector implementation with ::std::vector parity
   template<typename T, typename Alloc = default_allocator<T>>
   class vector {
   public:
     // type aliases
-    using size_type = size_t;
+    using size_type = std::size_t;
     using allocator_type = Alloc;
     using value_type = T;
     using iterator = T*;
@@ -26,8 +25,8 @@ namespace ftl {
     using const_pointer = const T*;
     using reference = T&;
     using const_reference = const T&;
-    using reverse_iterator = ::std::reverse_iterator<iterator>;
-    using const_reverse_iterator = ::std::reverse_iterator<const_iterator>;
+    using reverse_iterator = std::reverse_iterator<iterator>;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
     // constructors
     // default
@@ -614,51 +613,47 @@ namespace ftl {
       vector<T, Alloc>::reserve(elements);
     }
   }
+  
+template<typename T, typename Alloc = default_allocator<T>>
+class unordered_vector : public vector<T, Alloc> {
+public:
+  using iterator = typename vector<T, Alloc>::iterator;
+  
+  using vector<T, Alloc>::vector;
+  iterator erase(typename vector<T, Alloc>::const_iterator position) override;
+  iterator erase(typename vector<T, Alloc>::const_iterator first, typename vector<T, Alloc>::const_iterator last) override;
 
-  template<typename T, typename Alloc = default_allocator<T>>
-  class unordered_vector : public vector<T, Alloc> {
-  public:
-    using iterator = typename vector<T, Alloc>::iterator;
-
-    using vector<T, Alloc>::vector;
-    iterator erase(iterator position) override;
-    iterator erase(iterator first, iterator last) override;
-
-
-  };
+};
   
 
-  template<typename T, typename Alloc>
-  typename vector<T, Alloc>::iterator unordered_vector<T, Alloc>::erase(iterator position) {
-    iterator it{ position };
-    if (it != this->m_end - 1) {
-      *it = this->back();
-    }
-    this->pop_back();
-    return const_cast<iterator>(position);
+template<typename T, typename Alloc>
+typename vector<T, Alloc>::iterator unordered_vector<T, Alloc>::erase(iterator position) {
+  iterator it{ position };
+  if (it != this->m_end - 1) {
+    *it = this->back();
   }
-
-  template<typename T, typename Alloc>
-  typename vector<T, Alloc>::iterator unordered_vector<T, Alloc>::erase(iterator first, iterator last) {
-    assert(first >= this->m_begin && "Iterator out of range.");
-    assert(last <= this->m_end && "Iterator out of range.");
-
-    const iterator temp_end{ last }, temp_begin{ first };
-    if (temp_end == this->m_end) {
-      while (this->m_end >= temp_begin)
-        this->pop_back();
-      return const_cast<iterator>(first);
-    }
-    iterator it{ temp_begin };
-    for (; it != last && last != this->m_end; ++it) {
-      *it = this->back();
-      this->pop_back();
-    }
-    while (it++ != last) {
-      this->pop_back();
-    }
-    return (temp_begin);
-
-  }
-
+  this->pop_back();
+  return const_cast<iterator>(position);
 }
+
+template<typename T, typename Alloc>
+typename vector<T, Alloc>::iterator unordered_vector<T, Alloc>::erase(iterator first, iterator last) {
+  assert(first >= this->m_begin && "Iterator out of range.");
+  assert(last <= this->m_end && "Iterator out of range.");
+   const iterator temp_end{ last }, temp_begin{ first };
+  if (temp_end == this->m_end) {
+    while (this->m_end >= temp_begin)
+      this->pop_back();
+    return const_cast<iterator>(first);
+  }
+  iterator it{ temp_begin };
+  for (; it != last && last != this->m_end; ++it) {
+    *it = this->back();
+    this->pop_back();
+  }
+  while (it++ != last) {
+    this->pop_back();
+  }
+  return (temp_begin);
+}
+} // namespace ftl

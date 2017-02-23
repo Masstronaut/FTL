@@ -1,4 +1,6 @@
 // All content copyright (c) Allan Deutsch 2017. All rights reserved.
+#pragma once 
+
 #include <type_traits>
 #include <utility>
 
@@ -182,7 +184,6 @@ namespace ftl {
     static constexpr bool value{ verify<T>() };
   };
   // Element Access
-
   template<typename T>
   struct has_index_operator {
   private:
@@ -437,7 +438,5 @@ namespace ftl {
       || (has_rbegin<T>::value && has_rend<T>::value)
       || (has_crbegin<T>::value && has_crend<T>::value) };
   };
-
-
 
 } // namespace ftl

@@ -6,7 +6,7 @@
 #include <type_traits> // std::false_type
 #include <cstddef> // ptrdiff_t
 #include <utility> // forward
-#include <cstring> // memset
+#include <cstring> // memset, size_t
 namespace ftl {
 
   // Allocator interface:
@@ -21,11 +21,11 @@ namespace ftl {
     using reference = T&;
     using const_pointer = const T *;
     using const_reference = const T&;
-    using size_type = size_t;
-    using difference_type = ::std::ptrdiff_t;
+    using size_type = std::size_t;
+    using difference_type = decltype(pointer{} -pointer{});
     template<typename Type>
     using rebind = default_allocator<Type>;
-    using propagate_on_container_move_assignment = ::std::false_type;
+    using propagate_on_container_move_assignment = std::false_type;
 
     default_allocator() noexcept {}
     default_allocator(const default_allocator<T> &alloc) noexcept { *this = alloc; }
@@ -58,7 +58,7 @@ namespace ftl {
 
   // This allocator takes the element count as a template parameter
   // It then reserves that much stack space to dish out allocations from
-  template<typename T, size_t N>
+  template<typename T, std::size_t N>
   class linear_stack_allocator {
   public:
     using value_type = T;
@@ -66,7 +66,7 @@ namespace ftl {
     using reference = T&;
     using const_pointer = const T *;
     using const_reference = const T&;
-    using size_type = size_t;
+    using size_type = std::size_t;
     using difference_type = ::std::ptrdiff_t;
     template<typename Type>
     using rebind = linear_stack_allocator<Type, N>;
@@ -112,4 +112,4 @@ namespace ftl {
     size_t m_index{ 0 };
   };
 
-}
+} // namespace ftl

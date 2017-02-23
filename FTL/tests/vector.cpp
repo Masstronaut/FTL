@@ -21,44 +21,43 @@ namespace ftl {
   template<typename T>
   struct container_test : container_test_base {
     virtual void test_impl() override {
-      test_begin<T>();
-
-      test_end<T>();
-      test_cbegin<T>();
-      test_cend<T>();
-      test_rbegin<T>();
-      test_rend<T>();
-      test_crbegin<T>();
-      test_crend<T>();
-      test_size<T>();
-      test_max_size<T>();
-      test_resize<T>();
-      test_resize_fill<T>();
-      test_capacity<T>();
-      test_empty<T>();
-      test_reserve<T>();
-      test_shrink_to_fit<T>();
-      test_index_operator<T>();
-      test_map_index_operator<T>();
-      test_at<T>();
-      test_front<T>();
-      test_back<T>();
-      test_data<T>();
-      test_clear<T>();
-      test_assign_range<T>();
-      test_assign_fill<T>();
-      test_assign_il<T>();
-      test_push_back<T>();
-      test_pop_back<T>();
-      test_insert<T>();
-      test_insert_n<T>();
-      test_insert_range<T>();
-      test_insert_il<T>();
-      test_erase<T>();
-      test_erase_range<T>();
-      test_emplace<T>();
-      test_emplace_back<T>();
-      test_swap<T>();
+      test_begin();
+      test_end();
+      test_cbegin();
+      test_cend();
+      test_rbegin();
+      test_rend();
+      test_crbegin();
+      test_crend();
+      test_size();
+      test_max_size();
+      test_resize();
+      test_resize_fill();
+      test_capacity();
+      test_empty();
+      test_reserve();
+      test_shrink_to_fit();
+      test_index_operator();
+      test_map_index_operator();
+      test_at();
+      test_front();
+      test_back();
+      test_data();
+      test_clear();
+      test_assign_range();
+      test_assign_fill();
+      test_assign_il();
+      test_push_back();
+      test_pop_back();
+      test_insert();
+      test_insert_n();
+      test_insert_range();
+      test_insert_il();
+      test_erase();
+      test_erase_range();
+      test_emplace();
+      test_emplace_back();
+      test_swap();
 
 
     }
@@ -81,9 +80,8 @@ namespace ftl {
 
     // sample body for tests that are relevant but not implemented yet.
     // std::cout << #TEST " is an available interface for " << typeid(C).name() << ".\n"; 
-#define CONTAINER_TEST_DECL( TEST ) template<typename C> void test_##TEST(std::enable_if_t<!::ftl::has_##TEST<C>::value, int> = 0) { std::cout << #TEST " is NOT an available interface for " << typeid(T).name() << ".\n"; }  \
-template<typename C> void test_##TEST(std::enable_if_t<::ftl::has_##TEST<C>::value, unsigned> = 0) 
-
+#define CONTAINER_TEST_DECL( TEST ) template<typename C = T> void test_##TEST(typename std::enable_if_t<!ftl::has_##TEST<C>::value, int> = 0) { std::cout << #TEST " is NOT an available interface for " << typeid(T).name() << ".\n"; }  \
+template<typename C = T> void test_##TEST(typename std::enable_if_t<ftl::has_##TEST<C>::value, unsigned> = 0) 
 
     CONTAINER_TEST_DECL(begin) {
       T container;
@@ -160,16 +158,27 @@ template<typename C> void test_##TEST(std::enable_if_t<::ftl::has_##TEST<C>::val
     }
     CONTAINER_TEST_DECL(resize) {}
     CONTAINER_TEST_DECL(resize_fill) {}
-    CONTAINER_TEST_DECL(reserve) {}
+    CONTAINER_TEST_DECL(reserve) {
+      T container;
+      assert(container.capacity() == 0);
+      container.reserve(50);
+      assert(container.capacity() >= 50);
+    }
     CONTAINER_TEST_DECL(shrink_to_fit) {}
-
+    
     CONTAINER_TEST_DECL(index_operator) {}
     CONTAINER_TEST_DECL(map_index_operator) {}
     CONTAINER_TEST_DECL(at) {}
     CONTAINER_TEST_DECL(front) {}
     CONTAINER_TEST_DECL(back) {}
     CONTAINER_TEST_DECL(data) {}
-    CONTAINER_TEST_DECL(clear) {}
+    CONTAINER_TEST_DECL(clear) {
+      T container;
+      add_n_elements(container, 1);
+      assert(container.size() > 0);
+      container.clear();
+      assert(container.size() == 0);
+    }
     CONTAINER_TEST_DECL(assign_range) {}
     CONTAINER_TEST_DECL(assign_fill) {}
     CONTAINER_TEST_DECL(assign_il) {}
@@ -189,7 +198,7 @@ template<typename C> void test_##TEST(std::enable_if_t<::ftl::has_##TEST<C>::val
 
   };
 
-}
+} // namespace ftl
 
 int main() {
 
