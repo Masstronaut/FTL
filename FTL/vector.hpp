@@ -620,8 +620,8 @@ public:
   using iterator = typename vector<T, Alloc>::iterator;
   
   using vector<T, Alloc>::vector;
-  iterator erase(typename vector<T, Alloc>::const_iterator position) override;
-  iterator erase(typename vector<T, Alloc>::const_iterator first, typename vector<T, Alloc>::const_iterator last) override;
+  iterator erase(iterator position) override;
+  iterator erase(iterator first, iterator last) override;
 
 };
   
