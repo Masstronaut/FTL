@@ -8,7 +8,7 @@ before_install:
 install:
 - sudo apt-get install cmake
 - sudo apt-get install -qq g++-6
-- export CXX="g++-5"
+- export CXX="g++-6"
 
 script:
 - "chmod +x ./build/buildGCC.sh"
