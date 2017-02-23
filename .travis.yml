@@ -13,3 +13,8 @@ install:
 script:
 - "chmod +x ./build/buildGCC.sh"
 - "bash -c ./build/buildGCC.sh"
+- "ls build/"
+- "./build/Release/FTL"
+
+notifications:
+  email: false
