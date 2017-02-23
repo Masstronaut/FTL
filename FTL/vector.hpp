@@ -67,6 +67,7 @@ public:
 
   // Modifiers
   void push_back(const T &data);
+  void push_back(T &&data);
   void pop_back();
   template<typename... Args>
   void emplace_back(Args&&... args);
@@ -110,6 +111,7 @@ public:
   size_type max_size() const noexcept;
   bool empty() const noexcept;
   void resize(size_type elements);
+  void resize(size_type elements, const value_type &val);
   virtual void reserve(size_type elements);
   void shrink_to_fit();
 
@@ -262,10 +264,17 @@ bool vector<T, Alloc>::empty() const noexcept {
 
 template<typename T, typename Alloc>
 void vector<T, Alloc>::resize(size_type elements) {
+  resize(elements, value_type{});
+}
+
+template<typename T, typename Alloc>
+void vector<T, Alloc>::resize(size_type elements, const value_type &val) {
   if (capacity < elements) {
     reserve(elements);
+  }
+  if(elements > size) {
     for (size_type i{ size() }; i < elements; ++i) {
-      emplace_back();
+      push_back(val);
     }
   }
   else {
@@ -344,6 +353,11 @@ void vector<T, Alloc>::push_back(const T &data) {
   m_alloc.construct(m_end++, data);
 }
 
+template<typename T, typename Alloc>
+void vector<T, Alloc>::push_back(T &&data) {
+  if (full()) grow();
+  m_alloc.construct(m_end++, std::forward<T&&>(data));
+}
 
 template<typename T, typename Alloc>
 template<typename... Args>
