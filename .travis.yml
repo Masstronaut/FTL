@@ -10,4 +10,6 @@ install:
 - sudo apt-get install -qq g++-4.8
 - export CXX="g++-4.8"
 
-script: "bash -c ./build/buildGCC.sh"
+script:
+- "chmod +x ./build/buildGCC.sh"
+- "bash -c ./build/buildGCC.sh"
