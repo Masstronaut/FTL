@@ -46,6 +46,8 @@ ENDFOREACH(predef)
 ##########Adding Preprocessor Defines##########
 
 ##########Setting Compiler Flags#########
+SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${DEFAULT_FLAGS_DEBUG}")
+SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${DEFAULT_FLAGS_RELEASE}")
 IF(WIN32)
   IF(MINGW)
     SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${GCC_FLAGS_DEBUG}")
@@ -164,6 +166,11 @@ ENDIF( EX_PLATFORM EQUAL 64 )
 
 
 ################FINDING LIBRARY PACKAGES###########################
+
+#######################DEFAULT FLAGS##############################
+SET(DEFAULT_FLAGS_DEBUG   "-std=c++14 -Wextra -Wall -pedantic ")
+SET(DEFAULT_FLAGS_RELEASE "-std=c++14 -Wextra -Wall -pedantic ")
+#######################DEFAULT FLAGS##############################
 
 #######################GCC FLAGS##############################
 SET(GCC_FLAGS_DEBUG   "-std=c++14 -Wextra -Wall -pedantic ")
