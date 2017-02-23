@@ -595,7 +595,7 @@ namespace ftl {
   inline_vector<T, N, Alloc>::~inline_vector() {
     this->clear();
     if (!(this->m_begin == (pointer)this->inline_buffer)) {
-      this->m_alloc.deallocate(m_begin, m_capacity);
+      this->m_alloc.deallocate(this->m_begin, this->m_capacity);
     }
     this->m_begin = nullptr;
     this->m_end = nullptr;
