@@ -593,13 +593,13 @@ namespace ftl {
   };
   template<typename T, std::size_t N, typename Alloc>
   inline_vector<T, N, Alloc>::~inline_vector() {
-    clear();
+    this->clear();
     if (!(this->m_begin == (pointer)this->inline_buffer)) {
-      m_alloc.deallocate(m_begin, m_capacity);
+      this->m_alloc.deallocate(m_begin, m_capacity);
     }
-    m_begin = nullptr;
-    m_end = nullptr;
-    m_capacity = 0;
+    this->m_begin = nullptr;
+    this->m_end = nullptr;
+    this->m_capacity = 0;
   }
   template<typename T, std::size_t N, typename Alloc>
   void inline_vector<T, N, Alloc>::reserve(size_type elements) {
