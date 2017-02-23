@@ -188,8 +188,8 @@ namespace ftl {
   struct has_index_operator {
   private:
     template<typename> struct check : std::true_type {};
-    template<typename C> static auto test(int)->check<decltype(typename T::reference{ std::declval<T>()[std::declval<typename T::size_type>()] })>;
-    //template<typename C> static auto test(void*)->check<decltype(typename T::const_reference{ std::declval<const T>()[std::declval<typename T::size_type>()] })>;
+    //template<typename C> static auto test(int)->check<decltype(typename T::reference{ std::declval<T>()[std::declval<typename T::size_type>()] })>;
+    template<typename C> static auto test(void*)->check<decltype(typename T::const_reference{ std::declval<const T>()[std::declval<typename T::size_type>()] })>;
     template<class> static auto test(long)->std::false_type;
     template<typename C> struct verify : decltype(test<C>(0)){};
   public:
@@ -219,8 +219,8 @@ namespace ftl {
   struct has_at {
   private:
     template<typename> struct check : std::true_type {};
-    template<typename C> static auto test(int)->check<decltype(typename T::reference{ std::declval<T>().at(std::declval<typename T::size_type>()) })>;
-    //template<typename C> static auto test(void*)->check<decltype(typename T::const_reference{ std::declval<const T>().at(std::declval<typename T::size_type>()) })>;
+    //template<typename C> static auto test(int)->check<decltype(typename T::reference{ std::declval<T>().at(std::declval<typename T::size_type>()) })>;
+    template<typename C> static auto test(void*)->check<decltype(typename T::const_reference{ std::declval<const T>().at(std::declval<typename T::size_type>()) })>;
     template<class> static auto test(long)->std::false_type;
     template<typename C> struct verify : decltype(test<C>(0)){};
   public:
@@ -230,8 +230,8 @@ namespace ftl {
   struct has_front {
   private:
     template<typename> struct check : std::true_type {};
-    template<typename C> static auto test(int)->check<decltype(typename T::reference{ std::declval<T>().front() })>;
-    //template<typename C> static auto test(void*)->check<decltype(typename T::const_reference{ std::declval<const T>().front() })>;
+    //template<typename C> static auto test(int)->check<decltype(typename T::reference{ std::declval<T>().front() })>;
+    template<typename C> static auto test(void*)->check<decltype(typename T::const_reference{ std::declval<const T>().front() })>;
     template<class> static auto test(long)->std::false_type;
     template<typename C> struct verify : decltype(test<C>(0)){};
   public:
@@ -241,8 +241,8 @@ namespace ftl {
   struct has_back {
   private:
     template<typename> struct check : std::true_type {};
-    template<typename C> static auto test(int)->check<decltype(typename T::reference{ std::declval<T>().back() })>;
-    //template<typename C> static auto test(void*)->check<decltype(typename T::const_reference{ std::declval<const T>().back() })>;
+    //template<typename C> static auto test(int)->check<decltype(typename T::reference{ std::declval<T>().back() })>;
+    template<typename C> static auto test(void*)->check<decltype(typename T::const_reference{ std::declval<const T>().back() })>;
     template<class> static auto test(long)->std::false_type;
     template<typename C> struct verify : decltype(test<C>(0)){};
   public:
