@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "allocator.hpp" // ftl::default_allocator
+
 #include <limits> // needed for allocator::max_size
 #include <iterator> // ::std::reverse_iterator<>
 #include <utility> // ::std::distance
@@ -9,54 +11,6 @@
 #include <cassert>
 
 namespace ftl {
-
-// Allocator interface:
-// This is the default allocator. It fulfills the minimum interface requirements of an allocator.
-// If you wish to write a custom allocator, it must have at least these type aliases and member functions.
-// It does not need to derive from this class.
-template<typename T>
-class default_allocator {
-public:
-  using value_type = T;
-  using pointer = T*;
-  using reference = T&;
-  using const_pointer = const T *;
-  using const_reference = const T&;
-  using size_type = size_t;
-  using difference_type = ::std::ptrdiff_t;
-  template<typename Type>
-  using rebind = default_allocator<Type>;
-  using propagate_on_container_move_assignment = ::std::false_type;
-
-  default_allocator() noexcept {}
-  default_allocator(const default_allocator<T> &alloc) noexcept {}
-  template<class U>
-  default_allocator(const default_allocator<U> &alloc) noexcept;
-  ~default_allocator() {}
-
-  pointer address(reference x) const noexcept { return &x; }
-  const_pointer address(const_reference x) const noexcept { return &x; }
-  pointer allocate(size_type n, const void * hint = 0) {
-    // the default allocator uses the system new and delete implementations.
-    // Therefore it can't do anything with the hint pointer.
-    return reinterpret_cast<pointer>(::operator new(n * sizeof(value_type)));
-  }
-  void deallocate(pointer p, size_type n) { 
-    ::operator delete(reinterpret_cast<void*>(p)); 
-  }
-  size_type max_size() const noexcept { 
-    return ::std::numeric_limits<unsigned>::max(); 
-  }
-  template<typename U, typename... Args>
-  void construct(U* p, Args&&... args) {
-    ::new (p) U(::std::forward<Args>(args)...);
-  }
-  template<class U>
-  void destroy(U* p) {
-    p->~U();
-  }
-};
-
 
 // vector implementation with ::std::vector parity
 template<typename T, typename Alloc = default_allocator<T>>
