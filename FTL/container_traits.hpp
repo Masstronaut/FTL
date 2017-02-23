@@ -144,7 +144,7 @@ namespace ftl {
   private:
     template<typename> struct check : std::true_type {};
     template<typename C> static auto test(int)
-      ->check<decltype(std::declval<C>().resize(std::declval<T::size_type>(), std::declval<typename T::value_type>()))>;
+      ->check<decltype(std::declval<C>().resize(std::declval<typename T::size_type>(), std::declval<typename T::value_type>()))>;
     template<class> static auto test(long)->std::false_type;
     template<typename C> struct verify : decltype(test<C>(0)){};
   public:
@@ -184,7 +184,6 @@ namespace ftl {
     static constexpr bool value{ verify<T>() };
   };
   // Element Access
-
   template<typename T>
   struct has_index_operator {
   private:

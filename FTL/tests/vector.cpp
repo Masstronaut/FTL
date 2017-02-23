@@ -83,7 +83,6 @@ namespace ftl {
 #define CONTAINER_TEST_DECL( TEST ) template<typename C = T> void test_##TEST(typename std::enable_if_t<!ftl::has_##TEST<C>::value, int> = 0) { std::cout << #TEST " is NOT an available interface for " << typeid(T).name() << ".\n"; }  \
 template<typename C = T> void test_##TEST(typename std::enable_if_t<ftl::has_##TEST<C>::value, unsigned> = 0) 
 
-
     CONTAINER_TEST_DECL(begin) {
       T container;
       auto it = container.begin();
@@ -166,7 +165,7 @@ template<typename C = T> void test_##TEST(typename std::enable_if_t<ftl::has_##T
       assert(container.capacity() >= 50);
     }
     CONTAINER_TEST_DECL(shrink_to_fit) {}
-
+    
     CONTAINER_TEST_DECL(index_operator) {}
     CONTAINER_TEST_DECL(map_index_operator) {}
     CONTAINER_TEST_DECL(at) {}
