@@ -17,7 +17,7 @@ template<typename T, typename Alloc = default_allocator<T>>
 class vector {
 public:
   // type aliases
-  using size_type = size_t;
+  using size_type = std::size_t;
   using allocator_type = Alloc;
   using value_type = T;
   using iterator = T*;
@@ -26,8 +26,8 @@ public:
   using const_pointer = const T*;
   using reference = T&;
   using const_reference = const T&;
-  using reverse_iterator = ::std::reverse_iterator<iterator>;
-  using const_reverse_iterator = ::std::reverse_iterator<const_iterator>;
+  using reverse_iterator = std::reverse_iterator<iterator>;
+  using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
   // constructors
   // default
@@ -624,7 +624,6 @@ public:
   iterator erase(typename vector<T, Alloc>::const_iterator position) override;
   iterator erase(typename vector<T, Alloc>::const_iterator first, typename vector<T, Alloc>::const_iterator last) override;
 
-
 };
 
 
@@ -661,7 +660,4 @@ typename vector<T, Alloc>::iterator unordered_vector<T, Alloc>::erase(typename v
     
 }
 
-
-
-
-}
+} // namespace ftl
