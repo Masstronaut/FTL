@@ -62,18 +62,15 @@ namespace ftl {
 
     }
     T& add_n_elements(T& container, size_t n = 10) {
-      if (::ftl::has_assign_fill<T>::value) {
-        container.assign(n, typename T::value_type{});
-        return container;
-      }
-      else if (::ftl::has_push_back<T>::value) {
-        for (unsigned i{ 0 }; i < 100; ++i) {
+      if (::ftl::has_push_back<T>::value) {
+        for (unsigned i{ 0 }; i < n; ++i) {
           container.push_back(typename T::value_type{});
         }
         return container;
       }
-      else if (::ftl::has_assign_range<T>::value) {
-        std::vector<typename T::value_type> other(n, typename T::value_type{});
+      if (::ftl::has_insert_n<T>::value) {
+        container.insert(container.end(), n, typename T::value_type{});
+        return container;
       }
       assert(false && "Failed to find an interface with which n elements could be added to the container.");
     }
@@ -154,15 +151,24 @@ template<typename C = T> void test_##TEST(typename std::enable_if_t<ftl::has_##T
     }
     CONTAINER_TEST_DECL(capacity) {
       T container;
-      assert(container.capacity() == 0);
+      typename T::size_type cap = container.capacity();
+      container.reserve(cap);
+      typename T::size_type cap1 = container.capacity();
+      assert(container.capacity() >= cap); // valid even on containers with non-0 initial capacity
+      container.reserve((cap + 1) * 2); // add 1 in case it's 0 to start with. Should force an allocation
+      assert(container.capacity() >= cap1);
+      assert(container.capacity() >= (cap + 1) * 2);
     }
     CONTAINER_TEST_DECL(resize) {}
     CONTAINER_TEST_DECL(resize_fill) {}
     CONTAINER_TEST_DECL(reserve) {
       T container;
-      assert(container.capacity() == 0);
+      container.reserve(1);
+      assert(container.capacity() >= 1);
       container.reserve(50);
       assert(container.capacity() >= 50);
+      container.reserve(101);
+      assert(container.capacity() >= 101);
     }
     CONTAINER_TEST_DECL(shrink_to_fit) {}
     
@@ -199,14 +205,18 @@ template<typename C = T> void test_##TEST(typename std::enable_if_t<ftl::has_##T
   };
 
 } // namespace ftl
-
+#include <memory>
 int main() {
 
+  std::vector<std::unique_ptr<ftl::container_test_base>> tests;
+  tests.emplace_back(new ftl::container_test<std::vector<float>>());
+  tests.emplace_back(new ftl::container_test<ftl::vector<float>>());
+  tests.emplace_back(new ftl::container_test<ftl::unordered_vector<float>>());
+  tests.emplace_back(new ftl::container_test<ftl::inline_vector<float,20>>());
+  for (auto &it : tests) {
+    it->execute();
+  }
 
-  ftl::container_test<std::vector<float>> stdvecfltest;
-  stdvecfltest.execute();
-  ftl::container_test<ftl::vector<float>> ftlvecfltest;
-  ftlvecfltest.execute();
 
 
 

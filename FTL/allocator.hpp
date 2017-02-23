@@ -7,6 +7,7 @@
 #include <cstddef> // ptrdiff_t
 #include <utility> // forward
 #include <cstring> // memset, size_t
+#include <cassert> // assert
 namespace ftl {
 
   // Allocator interface:
@@ -48,7 +49,7 @@ namespace ftl {
     size_type max_size() const noexcept { return ::std::numeric_limits<unsigned>::max(); }
     template<typename U, typename... Args>
     void construct(U* p, Args&&... args) {
-      ::new (p) U(::std::forward<Args>(args)...);
+      ::new ((void*)p) U(::std::forward<Args>(args)...);
     }
     template<class U>
     void destroy(U* p) {

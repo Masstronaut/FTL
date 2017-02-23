@@ -384,7 +384,7 @@ namespace ftl {
     clear();
     reserve(n);
     for (size_type i{ 0 }; i < n; ++i) {
-      push_back(val);
+      emplace_back(std::forward<decltype(val)>(val));
     }
   }
 
@@ -393,14 +393,14 @@ namespace ftl {
     clear();
     reserve(il.size());
     for (auto it{ ::std::begin(il) }; it != ::std::end(il); ++it) {
-      push_back(*it);
+      emplace_back(*it);
     }
   }
 
   template<typename T, typename Alloc>
   typename vector<T, Alloc>::iterator vector<T, Alloc>::insert(const_iterator position, const value_type &val) {
     iterator it{ const_cast<iterator>(position) };
-    push_back(val);
+    emplace_back(val);
     ::std::rotate(it, end() - 1, end());
     return it;
   }
@@ -409,7 +409,7 @@ namespace ftl {
   typename vector<T, Alloc>::iterator vector<T, Alloc>::insert(const_iterator position, size_type n, const value_type &val) {
     iterator it{ const_cast<iterator>(position) }, n_first{ end() };
     for (size_type i{ 0 }; i < n; ++i) {
-      push_back(val);
+      emplace_back(val);
     }
     ::std::rotate(it, n_first, end());
     return it;
@@ -420,7 +420,7 @@ namespace ftl {
   typename vector<T, Alloc>::iterator vector<T, Alloc>::insert(const_iterator position, InputIterator first, InputIterator last) {
     iterator it{ const_cast<iterator>(position) }, n_first{ end() };
     for (auto it{ first }; it != last; ++it) {
-      push_back(*it);
+      emplace_back(*it);
     }
     ::std::rotate(it, n_first, end());
     return it;
@@ -571,8 +571,9 @@ namespace ftl {
   }
 
 
-  // @@ALLAN: finish stuff below here
-  template <typename T, size_t N, typename Alloc = default_allocator<T>>
+  // inline_vector is a vector derivative with a built in storage buffer for the first N elements,
+  // where N is specified as a non-type template parameter.
+  template <typename T, std::size_t N, typename Alloc = default_allocator<T>>
   class inline_vector : public vector<T, Alloc> {
   public:
     using value_type = T;
@@ -583,14 +584,24 @@ namespace ftl {
         reinterpret_cast<pointer>(inline_buffer),
         N)
     {}
+    virtual ~inline_vector() override;
 
     virtual void reserve(size_type elements) override;
   protected:
   private:
     char inline_buffer[sizeof(value_type) * N];
   };
-
-  template<typename T, size_t N, typename Alloc>
+  template<typename T, std::size_t N, typename Alloc>
+  inline_vector<T, N, Alloc>::~inline_vector() {
+    clear();
+    if (!(this->m_begin == (pointer)this->inline_buffer)) {
+      m_alloc.deallocate(m_begin, m_capacity);
+    }
+    m_begin = nullptr;
+    m_end = nullptr;
+    m_capacity = 0;
+  }
+  template<typename T, std::size_t N, typename Alloc>
   void inline_vector<T, N, Alloc>::reserve(size_type elements) {
     if (this->capacity() >= elements) return;
     // The special case where the inline buffer is the current storage needs to be handled.
