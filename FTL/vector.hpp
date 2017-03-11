@@ -235,6 +235,7 @@ namespace ftl {
   vector<T, Alloc>& vector<T, Alloc>::operator=(::std::initializer_list<T> il) {
     clear();
     assign(il);
+    return *this;
   }
 
   template<typename T, typename Alloc>
