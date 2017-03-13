@@ -44,7 +44,7 @@ namespace ftl {
     }
     void deallocate(pointer p, size_type n) {
       (void)n; // unused
-      ::delete[] p;
+      ::delete[] (char*)p;
     }
     size_type max_size() const noexcept { return ::std::numeric_limits<unsigned>::max(); }
     template<typename U, typename... Args>
