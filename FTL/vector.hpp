@@ -206,8 +206,10 @@ namespace ftl {
 
   template<typename T, typename Alloc>
   vector<T, Alloc>::~vector() {
-    clear();
-    m_alloc.deallocate(m_begin, m_capacity);
+    if(this->capacity() != 0){ 
+      clear();
+      m_alloc.deallocate(m_begin, m_capacity);
+    }
     m_begin = nullptr;
     m_end = nullptr;
     m_capacity = 0;
@@ -235,6 +237,7 @@ namespace ftl {
   vector<T, Alloc>& vector<T, Alloc>::operator=(::std::initializer_list<T> il) {
     clear();
     assign(il);
+    return *this;
   }
 
   template<typename T, typename Alloc>
@@ -362,7 +365,8 @@ namespace ftl {
   template<typename... Args>
   void vector<T, Alloc>::emplace_back(Args&&... args) {
     if (full()) grow();
-    m_alloc.construct(m_end++, ::std::forward<Args>(args)...);
+    m_alloc.construct(m_end, ::std::forward<Args>(args)...);
+    ++m_end;
   }
 
 

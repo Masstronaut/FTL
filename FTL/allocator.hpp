@@ -23,7 +23,7 @@ namespace ftl {
     using const_pointer = const T *;
     using const_reference = const T&;
     using size_type = std::size_t;
-    using difference_type = decltype(pointer{} -pointer{});
+    using difference_type = decltype(pointer{} -pointer{}); //-V501
     template<typename Type>
     using rebind = default_allocator<Type>;
     using propagate_on_container_move_assignment = std::false_type;
@@ -102,7 +102,7 @@ namespace ftl {
     size_type max_size() const noexcept { return N; }
     template<typename U, typename... Args>
     void construct(U* p, Args&&... args) {
-      ::new (p) U(::std::forward<Args>(args)...);
+      ::new ((void*)p) U(::std::forward<Args>(args)...);
     }
     template<class U>
     void destroy(U* p) {
