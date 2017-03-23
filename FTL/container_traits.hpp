@@ -12,7 +12,6 @@ namespace ftl {
   private:
     template<typename> struct check : std::true_type {};
     template<typename C> static auto test(int)->check<decltype(typename T::iterator{ std::declval<T>().begin() })>;
-    template<typename C> static auto test(void*)->check<decltype(typename T::iterator{ std::declval<const T>().begin() })>;
     template<class> static auto test(long)->std::false_type;
     template<typename C> struct verify : decltype(test<C>(0)){};
   public:
@@ -23,7 +22,6 @@ namespace ftl {
   private:
     template<typename> struct check : std::true_type {};
     template<typename C> static auto test(int)->check<decltype(typename T::iterator{ std::declval<T>().end() })>;
-    template<typename C> static auto test(void*)->check<decltype(typename T::iterator{ std::declval<const T>().end() })>;
     template<class> static auto test(long)->std::false_type;
     template<typename C> struct verify : decltype(test<C>(0)){};
   public:
