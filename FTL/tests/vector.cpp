@@ -1,6 +1,8 @@
 // All content copyright (c) Allan Deutsch 2017. All rights reserved.
 #include "../container_traits.hpp"
 #include "../vector.hpp"
+#include "../hash.hpp"
+#include "../io.hpp"
 
 #include <vector>
 #include <unordered_map>
@@ -203,10 +205,26 @@ template<typename C = T> void test_##TEST(typename std::enable_if_t<ftl::has_##T
 
 
   };
-
 } // namespace ftl
 #include <memory>
+
+  // All content copyright (C) Allan Deutsch 2017. All rights reserved.
+#include <cstdint>
+#include <iostream>
+// User defined literal conversion to convert a string in the form "foo"_hash to the corresponding Murmur2A hash value
+constexpr uint64_t operator""_hash(const char *str, size_t size) {
+  return ftl::hash( str, size );
+}
+
+
 int main() {
+  constexpr uint64_t hash{ "Hello world"_hash };
+  ftl::print( "\"Hello world\"_hash is {}.", hash );
+  ftl::println( "a" );
+  ftl::println( "b" );
+  ftl::println( "c" );
+  ftl::println( "d" );
+
 
   std::vector<std::unique_ptr<ftl::container_test_base>> tests;
   tests.emplace_back(new ftl::container_test<std::vector<float>>());

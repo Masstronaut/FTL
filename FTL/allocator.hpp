@@ -34,8 +34,12 @@ namespace ftl {
     default_allocator(const default_allocator<U> &alloc) noexcept;
     ~default_allocator() {}
 
-    pointer address(reference x) const noexcept { return &x; }
-    const_pointer address(const_reference x) const noexcept { return &x; }
+    pointer address( reference x ) const noexcept {
+      return reinterpret_cast<pointer>( &reinterpret_cast<char&>( x ) );
+    }
+    const_pointer address( const_reference x ) const noexcept {
+      return reinterpret_cast<const_pointer>( &reinterpret_cast<const char&>( x ) );
+    }
     pointer allocate(size_type n, const void * hint = 0) {
       // the default allocator uses the system new and delete implementations.
       // Therefore it can't do anything with the hint pointer.

@@ -1,53 +1,133 @@
 // All content copyright (C) Allan Deutsch 2017. All rights reserved.
 #pragma once
 #include <cstdint>
+#include <utility> // std::forward
+#include <cassert>
+#include <cstddef> // size_t
 namespace ftl {
 
-  using uint64_t = ::std::uint64_t;
-  using uint32_t = ::std::uint32_t;
+  template<typename Hasher>
+  struct hash_traits {
+    using hasher_type = Hasher;
+    using hash_type = typename hasher_type::hash_type;
+    static constexpr hash_type prime{ sizeof( hash_type ) == 4 ? 16777619u : 1099511628211ull };
+    static constexpr hash_type seed{ sizeof( hash_type ) == 4 ? 0x811c9dc5u : 0xcbf29ce484222325ull };
+    static inline constexpr void start( hasher_type &hasher, size_t size ) { hasher.start( size ); }
+    static inline constexpr void insert( hasher_type &hasher, hash_type chunk ) { hasher.insert( chunk ); }
+    static inline constexpr hash_type finish( hasher_type &hasher, hash_type last_chunk ) { return hasher.finish( last_chunk ); }
+  };
+
+  template<typename Result>
+  struct fnv1a {
+    constexpr fnv1a( ) = default;
+    static_assert( std::is_integral<Result>::value, "FNV-1a hash function requires an integer type for the result of the hash." );
+    using hash_type = Result;
+
+    constexpr void start( size_t size ) { }
+    constexpr void insert( hash_type block ) {
+      m_hash ^= block;
+      m_hash ^= hash_traits<::ftl::fnv1a<hash_type> >::prime;
+    }
+    constexpr hash_type finish( hash_type last_block ) {
+      m_hash ^= last_block;
+      m_hash *= hash_traits<::ftl::fnv1a<hash_type> >::prime;
+      hash_type result{ m_hash };
+      m_hash = hash_traits<::ftl::fnv1a<hash_type> >::seed;
+      return result;
+    }
+
+  private:
+    hash_type m_hash{ hash_traits<::ftl::fnv1a<hash_type> >::seed };
+  };
+
   // According to the top post here: http://softwareengineering.stackexchange.com/a/145633
   // murmur2 is the best hash for speed and random distribution.
   // This is a constexpr implementation of Murmur2A, a hash algorithm designed by Austin Appleby.
   // This version is optimized for 64bit architectures.
-  constexpr uint64_t murmur2a_64_ct( const char *str, size_t size, uint64_t seed ) {
-    uint64_t prime{ 0xc6a4a7935bd1e995ull };
-    const uint64_t shift1{ 19 };
-    constexpr uint32_t shift2{ 37 };
-    uint64_t hash{ seed ^ ( size * prime ) };
-    const uint64_t *data{ ( const uint64_t * )str };
-    const uint64_t *end{ data + ( size / 8 ) };
+  template<typename Result>
+  struct murmur2a {
+    using hash_type = Result;
+    constexpr murmur2a( ) = default;
 
+    static_assert( std::is_integral<Result>::value, "MurMurHash2a hash function requires an integer type for the result of the hash." );
+    static_assert( sizeof( hash_type ) == 4 || sizeof( hash_type ) == 8, "Hash type must be a 4 or 8 byte integer." );
+
+    constexpr void start( size_t size ) { 
+      m_hash ^= size * ::ftl::hash_traits<::ftl::murmur2a<hash_type> >::prime;
+    }
+    constexpr void insert( hash_type block ) {
+      block *= ::ftl::hash_traits<::ftl::murmur2a<hash_type> >::prime;
+      block ^= block >> s_shift1;
+      block *= ::ftl::hash_traits<::ftl::murmur2a<hash_type> >::prime;
+      m_hash ^= block;
+      m_hash *= ::ftl::hash_traits<::ftl::murmur2a<hash_type> >::prime;
+    }
+    constexpr hash_type finish( hash_type last_block ) {
+      m_hash ^= last_block;
+      m_hash ^= m_hash >> s_shift1;
+      m_hash *= ::ftl::hash_traits<::ftl::murmur2a<hash_type> >::prime;
+      m_hash ^= m_hash >> s_shift2;
+      hash_type result{ m_hash };
+      m_hash = ::ftl::hash_traits<::ftl::murmur2a<hash_type> >::seed;
+      return result;
+    }
+
+  private:
+    static constexpr uint16_t s_shift1{ 7 };
+    static constexpr uint16_t s_shift2{ 19 };
+    hash_type m_hash{ ::ftl::hash_traits<::ftl::murmur2a<hash_type> >::seed };
+  };
+
+  template<typename Hasher = murmur2a<uint32_t>>
+  constexpr typename ::ftl::hash_traits<Hasher>::hash_type hash( const char *str, size_t size, Hasher hasher = {}  ) {
+    
+    using hash_type = typename ::ftl::hash_traits<Hasher>::hash_type;
+  #pragma warning( push )
+  #pragma warning( disable : 4293 )
+    const char *data{ str };
+    const char *end{ data + (sizeof( hash_type ) * ( size / sizeof( hash_type ) ) ) };
+    ::ftl::hash_traits<Hasher>::start( hasher, size );
     while( data != end ) {
-      uint64_t word{ *data++ };
-      word *= prime;
-      word ^= word >> shift1;
-      word *= prime;
-      hash ^= word;
-      hash *= prime;
+      hash_type block{ 0 };
+      switch( size & ( sizeof( hash_type ) - 1 ) ) {
+      case 7: block ^= ( ( hash_type )data[ 6 ] ) << 48;
+      case 6: block ^= ( ( hash_type )data[ 5 ] ) << 40;
+      case 5: block ^= ( ( hash_type )data[ 4 ] ) << 32;
+      case 4: block ^= ( ( hash_type )data[ 3 ] ) << 24;
+      case 3: block ^= ( ( hash_type )data[ 2 ] ) << 16;
+      case 2: block ^= ( ( hash_type )data[ 1 ] ) << 8;
+      case 1: block ^= ( ( hash_type )data[ 0 ] ) << 0;
+
+        break;
+      default:
+        assert( false && "Invalid hash type." );
+      }
+      data++;
+      ::ftl::hash_traits<Hasher>::insert( hasher, block );
     }
 
-    const unsigned char *byte_data{ ( const unsigned char * )data };
-
-    switch( size & 7 ) {
-    case 7: hash ^= ( ( uint64_t )byte_data[ 6 ] ) << 48;
-    case 6: hash ^= ( ( uint64_t )byte_data[ 5 ] ) << 40;
-    case 5: hash ^= ( ( uint64_t )byte_data[ 4 ] ) << 32;
-    case 4: hash ^= ( ( uint64_t )byte_data[ 3 ] ) << 24;
-    case 3: hash ^= ( ( uint64_t )byte_data[ 2 ] ) << 16;
-    case 2: hash ^= ( ( uint64_t )byte_data[ 1 ] ) << 8;
-    case 1: hash ^= ( ( uint64_t )byte_data[ 0 ] );
+    const char *last_block{ data };
+    hash_type block{ 0 };
+    switch( size & (sizeof(hash_type) - 1) ) {      
+    case 7: block ^= ( ( hash_type )last_block[ 6 ] ) << 48;
+    case 6: block ^= ( ( hash_type )last_block[ 5 ] ) << 40;
+    case 5: block ^= ( ( hash_type )last_block[ 4 ] ) << 32;
+    case 4: block ^= ( ( hash_type )last_block[ 3 ] ) << 24;
+    case 3: block ^= ( ( hash_type )last_block[ 2 ] ) << 16;
+    case 2: block ^= ( ( hash_type )last_block[ 1 ] ) << 8;
+    case 1: block ^= ( ( hash_type )last_block[ 0 ] ) << 0;
+  #pragma warning( pop )
+    break;
+    default:
+      assert( false && "Invalid hash type." );
     }
 
-    hash ^= hash >> shift1;
-    hash *= prime;
-    hash ^= hash >> shift2;
-
-    return hash;
+    return ::ftl::hash_traits<Hasher>::finish( hasher, block );
   }
 
-  // User defined literal conversion to convert a string in the form "foo"_hash to the corresponding Murmur2A hash value
-  constexpr uint64_t operator""_hash( const char *str, size_t size ) {
-    constexpr uint64_t seed_prime{ 0xFFFFFFFFFFFFFFC5ull };
-    return murmur2a_64_ct( str, size, seed_prime );
-  }
+  /*template<typename T, typename Hasher = murmur2a<uint32_t>>
+  constexpr typename ::ftl::hash_traits<Hasher>::hash_type hash( const T &data, Hasher hasher = Hasher{ } ) {
+    return hash( ( const uint8_t * )( &reinterpret_cast< const char & >( data ) ), sizeof( T ), std::forward<Hasher>( hasher ) );
+  }*/
+
 }

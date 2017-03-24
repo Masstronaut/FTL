@@ -271,10 +271,10 @@ namespace ftl {
 
   template<typename T, typename Alloc>
   void vector<T, Alloc>::resize(size_type elements, const value_type &val) {
-    if (capacity < elements) {
+    if (capacity() < elements) {
       reserve(elements);
     }
-    if (elements > size) {
+    if (elements > size()) {
       for (size_type i{ size() }; i < elements; ++i) {
         push_back(val);
       }
@@ -483,7 +483,6 @@ namespace ftl {
       for (; _count < size() - _diff; ++_count) {
         std::swap(this->at(_count), other.at(_count));
       }
-      size_type _new_end{ _count };
       for (; _count < size(); ++_count) {
         other.emplace_back(std::move(this->at(_count)));
       }
@@ -497,7 +496,6 @@ namespace ftl {
       for (; _count < other.size() - _diff; ++_count) {
         std::swap(this->at(_count), other.at(_count));
       }
-      size_type _new_end{ _count };
       for (; _count < other.size(); ++_count) {
         emplace_back(std::move(other.at(_count)));
       }
@@ -615,7 +613,6 @@ namespace ftl {
       pointer new_buffer = this->m_alloc.allocate(elements);
       pointer temp_begin = this->begin(), temp_end = this->end();
       this->m_begin = this->m_end = new_buffer;
-      size_type old_capacity{ this->capacity() };
       this->m_capacity = elements;
       this->assign(temp_begin, temp_end);
 
