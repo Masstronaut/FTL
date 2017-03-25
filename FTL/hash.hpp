@@ -4,6 +4,7 @@
 #include <utility> // std::forward
 #include <cassert>
 #include <cstddef> // size_t
+#include <string>
 namespace ftl {
 
   template<typename Hasher>
@@ -78,56 +79,90 @@ namespace ftl {
     hash_type m_hash{ ::ftl::hash_traits<::ftl::murmur2a<hash_type> >::seed };
   };
 
-  template<typename Hasher = murmur2a<uint32_t>>
-  constexpr typename ::ftl::hash_traits<Hasher>::hash_type hash( const char *str, size_t size, Hasher hasher = {}  ) {
-    
-    using hash_type = typename ::ftl::hash_traits<Hasher>::hash_type;
-  #pragma warning( push )
-  #pragma warning( disable : 4293 )
-    const char *data{ str };
-    const char *end{ data + (sizeof( hash_type ) * ( size / sizeof( hash_type ) ) ) };
-    ::ftl::hash_traits<Hasher>::start( hasher, size );
-    while( data != end ) {
+  namespace detail {
+    template<typename Hasher = murmur2a<uint32_t>>
+    constexpr typename ::ftl::hash_traits<Hasher>::hash_type hash( const char *str, size_t size, Hasher hasher = {} ) {
+
+      using hash_type = typename ::ftl::hash_traits<Hasher>::hash_type;
+#pragma warning( push )
+#pragma warning( disable : 4293 )
+      const char *data{ str };
+      const char *end{ data + ( sizeof( hash_type ) * ( size / sizeof( hash_type ) ) ) };
+      ::ftl::hash_traits<Hasher>::start( hasher, size );
+      while( data != end ) {
+        hash_type block{ 0 };
+        switch( size & ( sizeof( hash_type ) - 1 ) ) {
+        case 7: block ^= ( ( hash_type )data[ 6 ] ) << 48;
+        case 6: block ^= ( ( hash_type )data[ 5 ] ) << 40;
+        case 5: block ^= ( ( hash_type )data[ 4 ] ) << 32;
+        case 4: block ^= ( ( hash_type )data[ 3 ] ) << 24;
+        case 3: block ^= ( ( hash_type )data[ 2 ] ) << 16;
+        case 2: block ^= ( ( hash_type )data[ 1 ] ) << 8;
+        case 1: block ^= ( ( hash_type )data[ 0 ] ) << 0;
+
+          break;
+        default:
+          assert( false && "Invalid hash type." );
+        }
+        data++;
+        ::ftl::hash_traits<Hasher>::insert( hasher, block );
+      }
+
+      const char *last_block{ data };
       hash_type block{ 0 };
       switch( size & ( sizeof( hash_type ) - 1 ) ) {
-      case 7: block ^= ( ( hash_type )data[ 6 ] ) << 48;
-      case 6: block ^= ( ( hash_type )data[ 5 ] ) << 40;
-      case 5: block ^= ( ( hash_type )data[ 4 ] ) << 32;
-      case 4: block ^= ( ( hash_type )data[ 3 ] ) << 24;
-      case 3: block ^= ( ( hash_type )data[ 2 ] ) << 16;
-      case 2: block ^= ( ( hash_type )data[ 1 ] ) << 8;
-      case 1: block ^= ( ( hash_type )data[ 0 ] ) << 0;
-
+      case 7: block ^= ( ( hash_type )last_block[ 6 ] ) << 48;
+      case 6: block ^= ( ( hash_type )last_block[ 5 ] ) << 40;
+      case 5: block ^= ( ( hash_type )last_block[ 4 ] ) << 32;
+      case 4: block ^= ( ( hash_type )last_block[ 3 ] ) << 24;
+      case 3: block ^= ( ( hash_type )last_block[ 2 ] ) << 16;
+      case 2: block ^= ( ( hash_type )last_block[ 1 ] ) << 8;
+      case 1: block ^= ( ( hash_type )last_block[ 0 ] ) << 0;
+#pragma warning( pop )
         break;
       default:
         assert( false && "Invalid hash type." );
       }
-      data++;
-      ::ftl::hash_traits<Hasher>::insert( hasher, block );
+
+      return ::ftl::hash_traits<Hasher>::finish( hasher, block );
     }
 
-    const char *last_block{ data };
-    hash_type block{ 0 };
-    switch( size & (sizeof(hash_type) - 1) ) {      
-    case 7: block ^= ( ( hash_type )last_block[ 6 ] ) << 48;
-    case 6: block ^= ( ( hash_type )last_block[ 5 ] ) << 40;
-    case 5: block ^= ( ( hash_type )last_block[ 4 ] ) << 32;
-    case 4: block ^= ( ( hash_type )last_block[ 3 ] ) << 24;
-    case 3: block ^= ( ( hash_type )last_block[ 2 ] ) << 16;
-    case 2: block ^= ( ( hash_type )last_block[ 1 ] ) << 8;
-    case 1: block ^= ( ( hash_type )last_block[ 0 ] ) << 0;
-  #pragma warning( pop )
-    break;
-    default:
-      assert( false && "Invalid hash type." );
+  } // detail
+
+
+  template<typename Key, typename Hasher = ::ftl::murmur2a<uint32_t>>
+  struct hash {
+    using result_type = typename ::ftl::hash_traits<Hasher>::hash_type;
+    constexpr hash( ) = default;
+    result_type operator()( const Key &key ) {
+      ::ftl::detail::hash<Hasher>( ( const char * )&reinterpret_cast< const char & >( key ), sizeof( Key ) );
     }
+  };
+  // specializations
+  template<typename Hasher>
+  struct hash<const char *, Hasher> {
+    using result_type = typename ::ftl::hash_traits<Hasher>::hash_type;
+    constexpr hash( ) = default;
+    constexpr result_type operator()( const char *str ) {
+      return ::ftl::detail::hash<Hasher>( str, c_str_length(str) );
+    }
+    constexpr result_type operator()( const char *str, size_t size ) {
+      return ::ftl::detail::hash<Hasher>( str, size );
+    }
+  private:
+    constexpr size_t c_str_length( const char *str ) {
+      size_t size{ 0 };
+      while( *str++ && ++size ); // intentionally empty body
+      return size;
+    }
+  };
+  template<typename Hasher>
+  struct hash<::std::string, Hasher> {
+    using result_type = typename ::ftl::hash_traits<Hasher>::hash_type;
+    result_type operator()( const ::std::string &str ) {
+      return ::ftl::detail::hash<Hasher>( str, str.size( ) );
+    }
+  };
 
-    return ::ftl::hash_traits<Hasher>::finish( hasher, block );
-  }
-
-  /*template<typename T, typename Hasher = murmur2a<uint32_t>>
-  constexpr typename ::ftl::hash_traits<Hasher>::hash_type hash( const T &data, Hasher hasher = Hasher{ } ) {
-    return hash( ( const uint8_t * )( &reinterpret_cast< const char & >( data ) ), sizeof( T ), std::forward<Hasher>( hasher ) );
-  }*/
 
 }

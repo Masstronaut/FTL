@@ -213,18 +213,21 @@ template<typename C = T> void test_##TEST(typename std::enable_if_t<ftl::has_##T
 #include <iostream>
 // User defined literal conversion to convert a string in the form "foo"_hash to the corresponding Murmur2A hash value
 constexpr uint64_t operator""_hash(const char *str, size_t size) {
-  return ftl::hash( str, size );
+  return ::ftl::hash<const char *, ::ftl::murmur2a<uint64_t>>{}( str, size );
 }
 
 
 int main() {
   constexpr uint64_t hash{ "Hello world"_hash };
-  ftl::print( "\"Hello world\"_hash is {}.", hash );
-  ftl::println( "a" );
-  ftl::println( "b" );
-  ftl::println( "c" );
-  ftl::println( "d" );
-
+  ftl::print( "\"Hello world\"_hash is ", hash, "." );
+  ftl::vector<uint64_t> hashes;
+  for( unsigned i{ 0 }; i < 10000; ++i ) {
+    ftl::murmur2a<uint64_t> hasher;
+    hashes.push_back( hasher.finish( i ) );
+  }
+  for( unsigned i{ 0 }; i < hashes.size( ); ++i ) {
+    ftl::print( "integer ", '|', ftl::io::left_pad(5, i), '|', " hashed is ", hashes[ i ], "." );
+  }
 
   std::vector<std::unique_ptr<ftl::container_test_base>> tests;
   tests.emplace_back(new ftl::container_test<std::vector<float>>());

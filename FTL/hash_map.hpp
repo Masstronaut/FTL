@@ -59,8 +59,8 @@ namespace ftl {
     using const_pointer = typename std::allocator_traits<allocator_type>::const_pointer;
     using hash_type = decltype( std::declval<hasher>( )( std::declval<key_type>( ) ) );
     using type = hash_map<key_type, value_type, key_equal, allocator_type>;
-    using iterator = void;
-    using const_iterator = void;
+    using iterator = typename ::ftl::vector<value_type>::iterator;
+    using const_iterator = typename ::ftl::vector<value_type>::const_iterator;
     using insert_return_type = std::pair<iterator, bool>;
     // constructors/destructor
 
@@ -71,11 +71,10 @@ namespace ftl {
     size_type max_size( ) const noexcept;
     size_type capacity( ) const noexcept;
     // iterators
-    iterator begin( ) const noexcept;
-    const_iterator cbegin( ) const noexcept;
-    iterator end( ) const noexcept;
-    const_iterator cend( ) const noexcept;
-
+    iterator begin( ) const noexcept { return m_values.begin( ); }
+    const_iterator cbegin( ) const noexcept { return m_values.cbegin( ); }
+    iterator end( ) const noexcept { return m_values.end( ); }
+    const_iterator cend( ) const noexcept { return m_values.cend( ); }
     //
     template<typename... Args>
     iterator emplace( Args&&... args );
@@ -87,12 +86,12 @@ namespace ftl {
       insert_return_type result{ this->end( ), false };
       hash_type hash{ m_hasher( value.first ) };
       insert_return_type collision{ hash_collision( hash ) };
-      if( !collision.second ) return collision;
+      if( collision.second ) return { collision.first, false }; // Failed: hash exists
       else {
         m_values.emplace_back( value );
         insert_hash( m_hashes, { hash, m_values.size( ) - 1 } );
       }
-      return { &m_values.back( ), true };
+      return { --m_values.end( ), true };
     }
 
     void reserve( size_type n ) {
@@ -110,15 +109,40 @@ namespace ftl {
     }
 
 
+    iterator find( const key_type &key ) {
+      hash_type hash{ m_hasher( key ) };
+      size_type index{ hash % capacity( ) };
+      for( size_type i{ 0 }; i <= max_probe_count( ); ++i ) {
+        typename m_hashes::value_type &value{ m_hashes[ index + i ] };
+        iterator element{ m_values.begin( ) + value.second };
+        if( value.first == hash && m_key_equal( key, element->first ) ) {
+          return element;
+        }
+      }
+      return m_values.end( );
+    }
 
+    const_iterator find( const key_type &key ) {
+      hash_type hash{ m_hasher( key ) };
+      size_type index{ hash % capacity( ) };
+      for( size_type i{ 0 }; i <= max_probe_count( ); ++i ) {
+        typename m_hashes::value_type &value{ m_hashes[ index + i ] };
+        const_iterator element{ m_values.cbegin( ) + value.second };
+        if( value.first == hash && m_key_equal( key, element->first ) ) {
+          return element;
+        }
+      }
+      return m_values.cend( );
+    }
 
   private:
+    size_type max_probe_count( ) const noexcept { return m_size_log10; }
     insert_return_type hash_collision( hash_type hash ) {
       size_type index{ it.first % new_size };
       for( size_type i{ 0 }; i < m_size_log10; ++i ) {
-        if( m_hashes[ index + i ].first == hash ) return { {m_hashes[ index + i ].second }, false };
+        if( m_hashes[ index + i ].first == hash ) return { {m_hashes[ index + i ].second }, true };
       }
-      return { this->end( ), true };
+      return { this->end( ), false };
     }
     void insert_hash( ftl::vector< std::pair<hash_type, size_type> > &vec, std::pair<hash_type, size_type> hash ) {
       size_type index{ it.first % new_size };
@@ -142,6 +166,7 @@ namespace ftl {
     ftl::vector< std::pair<hash_type, size_type> > m_hashes;
     ftl::vector<value_type> m_values;
     hasher m_hasher;
+    key_equal m_key_equal;
     float m_max_load_factor{ 0.5f };
     size_type m_capacity{ 0u };
     size_type m_size_log10{ 0u };
