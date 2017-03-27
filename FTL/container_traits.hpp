@@ -3,7 +3,7 @@
 
 #include <type_traits>
 #include <utility>
-
+#include <ostream> // to check for ostream insertion operator
 namespace ftl {
 
   // Iterators

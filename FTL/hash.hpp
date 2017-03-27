@@ -19,6 +19,33 @@ namespace ftl {
   };
 
   template<typename Result>
+  struct fnv1 {
+    constexpr fnv1( ) = default;
+    static_assert( std::is_integral<Result>::value, "FNV-1a hash function requires an integer type for the result of the hash." );
+    using hash_type = Result;
+
+    constexpr void start( size_t size ) { }
+    constexpr void insert( hash_type block ) {
+      m_hash *= hash_traits<::ftl::fnv1<hash_type> >::prime;
+      m_hash ^= block;
+    }
+    constexpr hash_type finish( hash_type last_block ) {
+      insert( last_block );
+      hash_type result{ m_hash };
+      m_hash = hash_traits<::ftl::fnv1<hash_type> >::seed;
+      return result;
+    }
+    constexpr hash_type finish( ) {
+      hash_type result{ m_hash };
+      m_hash = hash_traits<::ftl::fnv1<hash_type> >::seed;
+      return result;
+    }
+
+  private:
+    hash_type m_hash{ hash_traits<::ftl::fnv1<hash_type> >::seed };
+  };
+
+  template<typename Result>
   struct fnv1a {
     constexpr fnv1a( ) = default;
     static_assert( std::is_integral<Result>::value, "FNV-1a hash function requires an integer type for the result of the hash." );
@@ -27,18 +54,51 @@ namespace ftl {
     constexpr void start( size_t size ) { }
     constexpr void insert( hash_type block ) {
       m_hash ^= block;
-      m_hash ^= hash_traits<::ftl::fnv1a<hash_type> >::prime;
+      m_hash *= hash_traits<::ftl::fnv1a<hash_type> >::prime;
     }
     constexpr hash_type finish( hash_type last_block ) {
-      m_hash ^= last_block;
-      m_hash *= hash_traits<::ftl::fnv1a<hash_type> >::prime;
+      insert( last_block );
+      return finish( );
+    }
+    constexpr hash_type finish( ) {
       hash_type result{ m_hash };
+      // reset state
       m_hash = hash_traits<::ftl::fnv1a<hash_type> >::seed;
       return result;
     }
 
   private:
     hash_type m_hash{ hash_traits<::ftl::fnv1a<hash_type> >::seed };
+  };
+
+  template<typename Result>
+  struct ftlhash {
+    constexpr ftlhash( ) = default;
+    static_assert( std::is_integral<Result>::value, "FTLhash function requires an integer type for the result of the hash." );
+    using hash_type = Result;
+
+    constexpr void start( size_t size ) { 
+      m_hash *= ~(size << 13) ^ hash_traits<::ftl::ftlhash<hash_type> >::prime;
+    }
+    constexpr void insert( hash_type block ) {
+      m_hash ^= block;
+      m_hash ^= ( block << 7 ) ^ ~( block >> 11 );
+      m_hash *= hash_traits<::ftl::ftlhash<hash_type> >::prime;
+    }
+    constexpr hash_type finish( hash_type last_block ) {
+      insert( last_block );
+      return finish( );
+    }
+    constexpr hash_type finish( ) {
+      m_hash ^= ~( m_hash << 7 ) ^ ~( m_hash >> 11 );
+      hash_type result{ m_hash };
+      // reset state for next hash
+      m_hash = hash_traits<::ftl::ftlhash<hash_type> >::seed;
+      return result;
+    }
+
+  private:
+    hash_type m_hash{ hash_traits<::ftl::ftlhash<hash_type> >::seed };
   };
 
   // According to the top post here: http://softwareengineering.stackexchange.com/a/145633
@@ -64,11 +124,15 @@ namespace ftl {
       m_hash *= ::ftl::hash_traits<::ftl::murmur2a<hash_type> >::prime;
     }
     constexpr hash_type finish( hash_type last_block ) {
-      m_hash ^= last_block;
+      insert( last_block );
+      return finish( );
+    }
+    constexpr hash_type finish( ) {
       m_hash ^= m_hash >> s_shift1;
       m_hash *= ::ftl::hash_traits<::ftl::murmur2a<hash_type> >::prime;
       m_hash ^= m_hash >> s_shift2;
       hash_type result{ m_hash };
+      // reset the state for next hash
       m_hash = ::ftl::hash_traits<::ftl::murmur2a<hash_type> >::seed;
       return result;
     }
@@ -91,7 +155,9 @@ namespace ftl {
       ::ftl::hash_traits<Hasher>::start( hasher, size );
       while( data != end ) {
         hash_type block{ 0 };
-        switch( size & ( sizeof( hash_type ) - 1 ) ) {
+        switch( sizeof( block ) ) {
+
+        case 8: block ^= ( ( hash_type )data[ sizeof( block ) ] ) << ( ( sizeof( block ) - 1 ) * 8 );
         case 7: block ^= ( ( hash_type )data[ 6 ] ) << 48;
         case 6: block ^= ( ( hash_type )data[ 5 ] ) << 40;
         case 5: block ^= ( ( hash_type )data[ 4 ] ) << 32;
@@ -104,7 +170,7 @@ namespace ftl {
         default:
           assert( false && "Invalid hash type." );
         }
-        data++;
+        data += sizeof(block);
         ::ftl::hash_traits<Hasher>::insert( hasher, block );
       }
 
@@ -130,7 +196,7 @@ namespace ftl {
   } // detail
 
 
-  template<typename Key, typename Hasher = ::ftl::murmur2a<uint32_t>>
+  template<typename Key, typename Hasher = ::ftl::ftlhash<uint32_t>>
   struct hash {
     using result_type = typename ::ftl::hash_traits<Hasher>::hash_type;
     constexpr hash( ) = default;
@@ -160,7 +226,7 @@ namespace ftl {
   struct hash<::std::string, Hasher> {
     using result_type = typename ::ftl::hash_traits<Hasher>::hash_type;
     result_type operator()( const ::std::string &str ) {
-      return ::ftl::detail::hash<Hasher>( str, str.size( ) );
+      return ::ftl::detail::hash<Hasher>( str.c_str( ), str.size( ) );
     }
   };
 

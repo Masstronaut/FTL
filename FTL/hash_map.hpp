@@ -18,6 +18,24 @@ namespace ftl {
       67409u, 134837u, 269683u, 539389u,
       1078787u
     };
+#define FTL_DEFINE_MOD_FUNC( N ) uint64_t mod##N(uint64_t value) { return value % N##ull; }
+    FTL_DEFINE_MOD_FUNC(29)
+    FTL_DEFINE_MOD_FUNC(59)
+    FTL_DEFINE_MOD_FUNC(127)
+    FTL_DEFINE_MOD_FUNC(257)
+    FTL_DEFINE_MOD_FUNC(521)
+    FTL_DEFINE_MOD_FUNC(1049)
+    FTL_DEFINE_MOD_FUNC(2099)
+    FTL_DEFINE_MOD_FUNC(4201)
+    FTL_DEFINE_MOD_FUNC(8419)
+    FTL_DEFINE_MOD_FUNC(16843)
+    FTL_DEFINE_MOD_FUNC(33703)
+    FTL_DEFINE_MOD_FUNC(67409)
+    FTL_DEFINE_MOD_FUNC(134837)
+    FTL_DEFINE_MOD_FUNC(269683)
+    FTL_DEFINE_MOD_FUNC(539389)
+    FTL_DEFINE_MOD_FUNC(1078787)
+#undef FTL_DEFINE_MOD_FUNC
 
     uint32_t next_table_size( uint32_t prime ) {
       for( unsigned i{ 0 }; i < sizeof( hash_table_primes ) / sizeof(*hash_table_primes); ++i ) {
@@ -66,10 +84,17 @@ namespace ftl {
 
 
     // capacity
-    size_type empty( ) const noexcept;
-    size_type size( ) const noexcept;
-    size_type max_size( ) const noexcept;
-    size_type capacity( ) const noexcept;
+    size_type empty( ) const noexcept { return m_values.empty( ); }
+    size_type size( ) const noexcept { return m_values.size( ); }
+    size_type max_size( ) const noexcept {
+      //@@TODO: update this to support other allocation strategies (like power 2)
+      return ::ftl::detail::hash_table_primes[ sizeof(::ftl::detail::hash_table_primes) 
+                                             / sizeof(::ftl::detail::hash_table_primes[0])
+                                             - 1u ];
+    }
+    size_type capacity( ) const noexcept { 
+      return static_cast<float>( m_capacity + max_probe_count() ) * m_max_load_factor; 
+    }
     // iterators
     iterator begin( ) const noexcept { return m_values.begin( ); }
     const_iterator cbegin( ) const noexcept { return m_values.cbegin( ); }
@@ -95,10 +120,10 @@ namespace ftl {
     }
 
     void reserve( size_type n ) {
-      if( this->capacity() > (float)n / m_max_load_factor ) return;
-      m_size_log10 = static_cast< size_type >( std::log10( n ) );
+      if( this->capacity() > n  ) return;
+      m_max_probe_count = static_cast< size_type >( std::log2( n ) );
       size_type new_size{ ::ftl::detail::next_table_size( n ) };
-      size_type new_capacity{ new_size + m_size_log10 };
+      size_type new_capacity{ new_size + max_probe_count( ) };
       ftl::vector< std::pair< hash_type, size_type > > hashes( new_capacity, tombstone );
       for(auto &it : m_hashes ){ 
         insert_hash( hashes, it );
@@ -111,9 +136,9 @@ namespace ftl {
 
     iterator find( const key_type &key ) {
       hash_type hash{ m_hasher( key ) };
-      size_type index{ hash % capacity( ) };
+      size_type index{ hash % m_capacity };
       for( size_type i{ 0 }; i <= max_probe_count( ); ++i ) {
-        typename m_hashes::value_type &value{ m_hashes[ index + i ] };
+        hash_type &value{ m_hashes[ index + i ] };
         iterator element{ m_values.begin( ) + value.second };
         if( value.first == hash && m_key_equal( key, element->first ) ) {
           return element;
@@ -122,11 +147,11 @@ namespace ftl {
       return m_values.end( );
     }
 
-    const_iterator find( const key_type &key ) {
+    const_iterator find( const key_type &key ) const {
       hash_type hash{ m_hasher( key ) };
-      size_type index{ hash % capacity( ) };
+      size_type index{ hash % m_capacity };
       for( size_type i{ 0 }; i <= max_probe_count( ); ++i ) {
-        typename m_hashes::value_type &value{ m_hashes[ index + i ] };
+        hash_type &value{ m_hashes[ index + i ] };
         const_iterator element{ m_values.cbegin( ) + value.second };
         if( value.first == hash && m_key_equal( key, element->first ) ) {
           return element;
@@ -135,11 +160,119 @@ namespace ftl {
       return m_values.cend( );
     }
 
+    iterator find( key_type &&key ) {
+      hash_type hash{ m_hasher( key ) };
+      size_type index{ hash % m_capacity };
+      for( size_type i{ 0 }; i <= max_probe_count( ); ++i ) {
+        hash_type &value{ m_hashes[ index + i ] };
+        iterator element{ m_values.begin( ) + value.second };
+        if( value.first == hash && m_key_equal( key, element->first ) ) {
+          return element;
+        }
+      }
+      return m_values.end( );
+    }
+
+    const_iterator find( key_type &&key ) const {
+      hash_type hash{ m_hasher( key ) };
+      size_type index{ hash % m_capacity };
+      for( size_type i{ 0 }; i <= max_probe_count( ); ++i ) {
+        hash_type &value{ m_hashes[ index + i ] };
+        const_iterator element{ m_values.cbegin( ) + value.second };
+        if( value.first == hash && m_key_equal( key, element->first ) ) {
+          return element;
+        }
+      }
+      return m_values.cend( );
+    }
+
+    // find() version which doesn't perform validation of keys.
+    // By omitting the key compare, speed is improved substantially.
+    // The cost of this is two unique keys with a hash collision may 
+    //   return the wrong value.
+    iterator find_fast( const key_type &key ) {
+      hash_type hash{ m_hasher( key ) };
+      size_type index{ hash % m_capacity };
+      for( size_type i{ 0 }; i <= max_probe_count( ); ++i ) {
+        hash_type &value{ m_hashes[ index + i ] };
+        iterator element{ m_values.begin( ) + value.second };
+        if( value.first == hash ) {
+          return element;
+        }
+      }
+      return m_values.end( );
+    }
+
+    // find() version which doesn't perform validation of keys.
+    // By omitting the key compare, speed is improved substantially.
+    // The cost of this is two unique keys with a hash collision may 
+    //   return the wrong value.
+    const_iterator find_fast( const key_type &key ) const {
+      hash_type hash{ m_hasher( key ) };
+      size_type index{ hash % m_capacity };
+      for( size_type i{ 0 }; i <= max_probe_count( ); ++i ) {
+        hash_type &value{ m_hashes[ index + i ] };
+        const_iterator element{ m_values.cbegin( ) + value.second };
+        if( value.first == hash ) {
+          return element;
+        }
+      }
+      return m_values.cend( );
+    }
+
+    // find() version which doesn't perform validation of keys.
+    // By omitting the key compare, speed is improved substantially.
+    // The cost of this is two unique keys with a hash collision may 
+    //   return the wrong value.
+    iterator find_fast( key_type &&key ) {
+      hash_type hash{ m_hasher( key ) };
+      size_type index{ hash % m_capacity };
+      for( size_type i{ 0 }; i <= max_probe_count( ); ++i ) {
+        hash_type &value{ m_hashes[ index + i ] };
+        iterator element{ m_values.begin( ) + value.second };
+        if( value.first == hash ) {
+          return element;
+        }
+      }
+      return m_values.end( );
+    }
+
+    // find() version which doesn't perform validation of keys.
+    // By omitting the key compare, speed is improved substantially.
+    // The cost of this is two unique keys with a hash collision may 
+    //   return the wrong value.
+    const_iterator find_fast( key_type &&key ) const {
+      hash_type hash{ m_hasher( key ) };
+      size_type index{ hash % m_capacity };
+      for( size_type i{ 0 }; i <= max_probe_count( ); ++i ) {
+        hash_type &value{ m_hashes[ index + i ] };
+        const_iterator element{ m_values.cbegin( ) + value.second };
+        if( value.first == hash ) {
+          return element;
+        }
+      }
+      return m_values.cend( );
+    }
+
   private:
-    size_type max_probe_count( ) const noexcept { return m_size_log10; }
+    static const std::pair< hash_type, size_type > tombstone{ 0u, 0u };
+
+    ftl::vector< std::pair< hash_type, size_type > > m_hashes;
+    ftl::vector< value_type > m_values;
+    hasher m_hasher;
+    key_equal m_key_equal;
+    float m_max_load_factor{ 0.5f };
+    size_type m_capacity{ 0u };
+    size_type m_max_probe_count{ 0u };
+
+    // safety + assumption checks
+    static_assert( reinterpret_cast< type * >( nullptr ) == reinterpret_cast< type * >( nullptr )->m_hashes, "m_hashes not at the start of class." );
+
+
+    size_type max_probe_count( ) const noexcept { return m_max_probe_count; }
     insert_return_type hash_collision( hash_type hash ) {
       size_type index{ it.first % new_size };
-      for( size_type i{ 0 }; i < m_size_log10; ++i ) {
+      for( size_type i{ 0 }; i < m_max_probe_count; ++i ) {
         if( m_hashes[ index + i ].first == hash ) return { {m_hashes[ index + i ].second }, true };
       }
       return { this->end( ), false };
@@ -147,7 +280,7 @@ namespace ftl {
     void insert_hash( ftl::vector< std::pair<hash_type, size_type> > &vec, std::pair<hash_type, size_type> hash ) {
       size_type index{ it.first % new_size };
       unsigned probe_count{ 0 };
-      while( probe_count <= m_size_log10 && vec[ index + probe_count ] != tombstone ) {
+      while( probe_count <= m_max_probe_count && vec[ index + probe_count ] != tombstone ) {
         unsigned distance_from_optimal{ vec[ index + probe_count ].first % new_size };
         if( distance_from_optimal < probe_count ) {
           std::swap( vec[ index + probe_count ], hash );
@@ -157,22 +290,10 @@ namespace ftl {
       }
       if( vec[ index + probe_count ] == tombstone ) {
         vec[ index + probe_count ] = hash;
-      } else if (probe_count > m_size_log10 ) {
+      } else if (probe_count > m_max_probe_count ) {
         assert( false && "An internal error has occurred. Please file a report with the FTL project on github.com/masstronaut/FTL " );
       }
     }
-    static const std::pair< hash_type, size_type > tombstone{ 0u, 0u };
-
-    ftl::vector< std::pair<hash_type, size_type> > m_hashes;
-    ftl::vector<value_type> m_values;
-    hasher m_hasher;
-    key_equal m_key_equal;
-    float m_max_load_factor{ 0.5f };
-    size_type m_capacity{ 0u };
-    size_type m_size_log10{ 0u };
-
-    // safety + assumption checks
-    static_assert( reinterpret_cast< type * >( nullptr ) == reinterpret_cast< type * >( nullptr )->m_hashes, "m_hashes not at the start of class." );
   };
 
 

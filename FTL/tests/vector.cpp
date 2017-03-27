@@ -1,6 +1,7 @@
 // All content copyright (c) Allan Deutsch 2017. All rights reserved.
 #include "../container_traits.hpp"
 #include "../vector.hpp"
+#include "../timer.hpp"
 #include "../hash.hpp"
 #include "../io.hpp"
 
@@ -156,6 +157,7 @@ template<typename C = T> void test_##TEST(typename std::enable_if_t<ftl::has_##T
       typename T::size_type cap = container.capacity();
       container.reserve(cap);
       typename T::size_type cap1 = container.capacity();
+      ( void )cap1;
       assert(container.capacity() >= cap); // valid even on containers with non-0 initial capacity
       container.reserve((cap + 1) * 2); // add 1 in case it's 0 to start with. Should force an allocation
       assert(container.capacity() >= cap1);
@@ -213,22 +215,82 @@ template<typename C = T> void test_##TEST(typename std::enable_if_t<ftl::has_##T
 #include <iostream>
 // User defined literal conversion to convert a string in the form "foo"_hash to the corresponding Murmur2A hash value
 constexpr uint64_t operator""_hash(const char *str, size_t size) {
-  return ::ftl::hash<const char *, ::ftl::murmur2a<uint64_t>>{}( str, size );
+  return ::ftl::hash<const char *, ::ftl::ftlhash<uint64_t>>{}( str, size );
 }
 
+struct profile_results {
+  double best, worst, mean;
+  std::string name;
+  friend ::std::ostream& operator<<( std::ostream& os, const profile_results &pr ) {
+    return os 
+      << pr.name << " timing results:\n"
+      << "Best case: " << pr.best << ".\n"
+      << "Mean case: " << pr.mean << ".\n"
+      << "Worst case: " << pr.worst << "." << std::endl;
+  }
+};
+template<typename Hasher, typename T>
+profile_results profile_hasher( const ftl::vector<T>& keys, size_t iterations = 10 ) {
+  ftl::hash<T, Hasher> hasher;
+  ftl::inline_vector<double, 10> times;
+  ftl::vector< typename ftl::hash_traits< Hasher >::hash_type > results;
+  results.reserve( keys.size( ) );
+  for( size_t i{ 0 }; i < iterations; ++i ) {
+    times.push_back( 0.0 );
+    {
+      ftl::scope_timer<> timer( &times.back( ) );
+      for( size_t i{ 0 }; i < keys.size( ); ++i ) {
+        results.push_back( hasher( keys[ i ] ) );
+      }
+    }
+    if( results.size( ) != keys.size( ) ) {
+      ftl::print( "WTF" );
+    }
+    results.clear( );
+  }
+  std::sort( times.begin( ), times.end( ) );
+  profile_results ret;
+  ret.best = times.front( );
+  ret.worst = times.back( );
+  times.erase( times.begin( ) );
+  times.pop_back( );
+  ret.mean = 0.;
+  for( auto it : times ) ret.mean += it;
+  ret.mean /= times.size( );
+  ret.name = typeid( hasher ).name( );
+  return ret;
+}
+#include <fstream>
+ftl::vector<std::string> load_dict( const std::string& path ) {
+  ftl::vector<std::string> words;
+  std::ifstream infile( path );
+  if( !infile.good( ) ) return words;
+  char buffer[ 1000 ];
+  while( !infile.eof( ) ) {
+    infile.getline( buffer, 1000 );
+    words.push_back( buffer );
+  }
+  return words;
+}
 
 int main() {
   constexpr uint64_t hash{ "Hello world"_hash };
-  ftl::print( "\"Hello world\"_hash is ", hash, "." );
-  ftl::vector<uint64_t> hashes;
-  for( unsigned i{ 0 }; i < 10000; ++i ) {
-    ftl::murmur2a<uint64_t> hasher;
-    hashes.push_back( hasher.finish( i ) );
-  }
-  for( unsigned i{ 0 }; i < hashes.size( ); ++i ) {
-    ftl::print( "integer ", '|', ftl::io::left_pad(5, i), '|', " hashed is ", hashes[ i ], "." );
-  }
+  //ftl::print( "\"Hello world\"_hash is ", hash, "." );
+  //ftl::vector<int> keys;
+  //keys.reserve( 100000000 );
+  //for( int i{ 0 }; i < 100000000; ++i ) keys.push_back( i );
+  ftl::vector<std::string> keys = load_dict( "engdict.txt" );
+  uint64_t hash_result_t;
+  ftl::inline_vector<profile_results, 4> results;
+  results.push_back( profile_hasher< ftl::murmur2a<decltype( hash_result_t )>, decltype( keys )::value_type >( keys ) );
+  results.push_back( profile_hasher< ftl::fnv1<    decltype( hash_result_t )>, decltype( keys )::value_type >( keys ) );
+  results.push_back( profile_hasher< ftl::fnv1a<   decltype( hash_result_t )>, decltype( keys )::value_type >( keys ) );
+  results.push_back( profile_hasher< ftl::ftlhash< decltype( hash_result_t )>, decltype( keys )::value_type >( keys ) );
+  for( auto& it : results ) ftl::print( it );
 
+
+
+  system( "pause" );
   std::vector<std::unique_ptr<ftl::container_test_base>> tests;
   tests.emplace_back(new ftl::container_test<std::vector<float>>());
   tests.emplace_back(new ftl::container_test<ftl::vector<float>>());

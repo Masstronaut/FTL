@@ -9,24 +9,43 @@ namespace ftl {
     namespace detail {
       template<typename T>
       struct left_pad {
-        size_t pad;
+        uint32_t pad;
         const T &object;
         char pad_byte;
         friend ::std::ostream& operator<<( ::std::ostream &os, const left_pad<T> &pad ) {
           ::std::stringstream ss;
           ss << pad.object;
           std::string obj_stream( ss.str( ) );
-          for( int i{ 0 }; i < pad.pad - obj_stream.size(); ++i ) {
-            ::std::cout << pad.pad_byte;
+          for( int32_t i{ static_cast<int32_t>( pad.pad - obj_stream.size( ) ) }; i > 0; --i ) {
+            os << pad.pad_byte;
           }
-          ::std::cout << obj_stream;
+          return os << obj_stream;
         }
       };
-
+      template<typename T>
+      struct right_pad{
+        const T &object;
+        uint32_t pad;
+        char pad_byte;
+        friend ::std::ostream& operator<<( ::std::ostream &os, const right_pad<T> &pad ) {
+          ::std::stringstream ss;
+          ss << pad.object;
+          std::string obj_stream( ss.str( ) );
+          os << obj_stream;
+          for( int i{ static_cast<int32_t>( pad.pad - obj_stream.size( ) ) }; i > 0; --i ) {
+            os << pad.pad_byte;
+          }
+          return os;
+        }
+      };
     } // detail
     template<typename T>
-    detail::left_pad<T> left_pad( size_t pad, const T &object, char pad_byte = ' ' ) {
-      return detail::left_pad<T>{pad, object, pad_byte};
+    detail::left_pad<T> left_pad( uint32_t pad, const T &object, char pad_byte = ' ' ) {
+      return detail::left_pad<T>{ pad, object, pad_byte };
+    }
+    template<typename T>
+    detail::right_pad<T> right_pad( const T &object, uint32_t pad, char pad_byte = ' ' ) {
+      return detail::left_pad<T>{ object, pad, pad_byte };
     }
   } // io
 
@@ -40,7 +59,7 @@ namespace ftl {
   template<typename T, typename... Args>
   inline void print( const T& arg, const Args&... args ) {
     std::cout << arg;
-    print( std::forward<Args>( args )... );
+    print( args... );
   }
 
   // Type-safe printf alternative.
