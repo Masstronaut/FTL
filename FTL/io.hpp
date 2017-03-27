@@ -3,6 +3,7 @@
 #include <iostream>
 #include <sstream>
 #include <tuple>
+#include <bitset>
 namespace ftl {
 
   namespace io {
@@ -47,32 +48,37 @@ namespace ftl {
     detail::right_pad<T> right_pad( const T &object, uint32_t pad, char pad_byte = ' ' ) {
       return detail::left_pad<T>{ object, pad, pad_byte };
     }
+
+
+    template<typename T>
+    ::std::bitset<sizeof( T )> bits( const T &value ) {
+      return ::std::bitset<sizeof( T )>( value );
+    }
   } // io
 
   // Type-safe print function that automatically appends the data with a newline.
   template<typename T>
-  inline void print( const T &arg ) {
+  inline void println( const T &arg ) {
     std::cout << arg << std::endl;
   }
 
   // Type-safe print function that automatically inserts a newline at the end of the string.
   template<typename T, typename... Args>
-  inline void print( const T& arg, const Args&... args ) {
+  inline void println( const T& arg, const Args&... args ) {
     std::cout << arg;
-    print( args... );
+    println( args... );
   }
 
   // Type-safe printf alternative.
   template<typename T>
-  inline void println( T&& arg ) {
+  inline void print( T&& arg ) {
     std::cout << arg;
   }
 
   // Type-safe printf alternative.
   template<typename T, typename... Args>
-  inline void println( T&& arg, Args&&... args ) {
+  inline void print( T&& arg, Args&&... args ) {
     std::cout << arg;
-    println( std::forward<Args>( args )... );
+    print( std::forward<Args>( args )... );
   }
-
 }

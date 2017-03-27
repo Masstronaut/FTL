@@ -244,7 +244,7 @@ profile_results profile_hasher( const ftl::vector<T>& keys, size_t iterations = 
       }
     }
     if( results.size( ) != keys.size( ) ) {
-      ftl::print( "WTF" );
+      ftl::println( "WTF" );
     }
     results.clear( );
   }
@@ -275,7 +275,7 @@ ftl::vector<std::string> load_dict( const std::string& path ) {
 
 int main() {
   constexpr uint64_t hash{ "Hello world"_hash };
-  //ftl::print( "\"Hello world\"_hash is ", hash, "." );
+  //ftl::println( "\"Hello world\"_hash is ", hash, "." );
   //ftl::vector<int> keys;
   //keys.reserve( 100000000 );
   //for( int i{ 0 }; i < 100000000; ++i ) keys.push_back( i );
@@ -286,7 +286,7 @@ int main() {
   results.push_back( profile_hasher< ftl::fnv1<    decltype( hash_result_t )>, decltype( keys )::value_type >( keys ) );
   results.push_back( profile_hasher< ftl::fnv1a<   decltype( hash_result_t )>, decltype( keys )::value_type >( keys ) );
   results.push_back( profile_hasher< ftl::ftlhash< decltype( hash_result_t )>, decltype( keys )::value_type >( keys ) );
-  for( auto& it : results ) ftl::print( it );
+  for( auto& it : results ) ftl::println( it );
 
 
 

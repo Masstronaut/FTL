@@ -5,6 +5,9 @@
 #include <cassert>
 #include <cstddef> // size_t
 #include <string>
+#if defined(_DEBUG)
+#include "debug.hpp"
+#endif
 namespace ftl {
 
   template<typename Hasher>
@@ -98,7 +101,7 @@ namespace ftl {
     }
 
   private:
-    hash_type m_hash{ hash_traits<::ftl::ftlhash<hash_type> >::seed };
+    ::ftl::debug::bits<hash_type> m_hash{ hash_traits<::ftl::ftlhash<hash_type> >::seed };
   };
 
   // According to the top post here: http://softwareengineering.stackexchange.com/a/145633
@@ -154,7 +157,7 @@ namespace ftl {
       const char *end{ data + ( sizeof( hash_type ) * ( size / sizeof( hash_type ) ) ) };
       ::ftl::hash_traits<Hasher>::start( hasher, size );
       while( data != end ) {
-        hash_type block{ 0 };
+        ::ftl::debug block{ 0 };
         switch( sizeof( block ) ) {
 
         case 8: block ^= ( ( hash_type )data[ sizeof( block ) ] ) << ( ( sizeof( block ) - 1 ) * 8 );
