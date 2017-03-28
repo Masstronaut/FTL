@@ -215,7 +215,7 @@ template<typename C = T> void test_##TEST(typename std::enable_if_t<ftl::has_##T
 #include <iostream>
 // User defined literal conversion to convert a string in the form "foo"_hash to the corresponding Murmur2A hash value
 constexpr uint64_t operator""_hash(const char *str, size_t size) {
-  return ::ftl::hash<const char *, ::ftl::ftlhash<uint64_t>>{}( str, size );
+  return ::ftl::hash<const char *, ::ftl::murmur2a<uint64_t>>{}( str, size );
 }
 
 struct profile_results {
@@ -241,6 +241,8 @@ profile_results profile_hasher( const ftl::vector<T>& keys, size_t iterations = 
       ftl::scope_timer<> timer( &times.back( ) );
       for( size_t i{ 0 }; i < keys.size( ); ++i ) {
         results.push_back( hasher( keys[ i ] ) );
+        system( "pause" );
+        system( "cls" );
       }
     }
     if( results.size( ) != keys.size( ) ) {
@@ -274,7 +276,7 @@ ftl::vector<std::string> load_dict( const std::string& path ) {
 }
 
 int main() {
-  constexpr uint64_t hash{ "Hello world"_hash };
+  //constexpr uint64_t hash{ "Hello world"_hash };
   //ftl::println( "\"Hello world\"_hash is ", hash, "." );
   //ftl::vector<int> keys;
   //keys.reserve( 100000000 );
@@ -282,10 +284,10 @@ int main() {
   ftl::vector<std::string> keys = load_dict( "engdict.txt" );
   uint64_t hash_result_t;
   ftl::inline_vector<profile_results, 4> results;
+  results.push_back( profile_hasher< ftl::ftlhash< decltype( hash_result_t )>, decltype( keys )::value_type >( keys ) );
   results.push_back( profile_hasher< ftl::murmur2a<decltype( hash_result_t )>, decltype( keys )::value_type >( keys ) );
   results.push_back( profile_hasher< ftl::fnv1<    decltype( hash_result_t )>, decltype( keys )::value_type >( keys ) );
   results.push_back( profile_hasher< ftl::fnv1a<   decltype( hash_result_t )>, decltype( keys )::value_type >( keys ) );
-  results.push_back( profile_hasher< ftl::ftlhash< decltype( hash_result_t )>, decltype( keys )::value_type >( keys ) );
   for( auto& it : results ) ftl::println( it );
 
 

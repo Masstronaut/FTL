@@ -29,9 +29,17 @@ namespace ftl {
 
 #define FTL_DEBUG_BITS_OPERATOR( OP ) template<typename U> \
 bits operator##OP( U rhs ) { \
-  ::ftl::println( ::ftl::io::bits( m_value ), " " #OP " ", rhs, " ( ", ::ftl::io::bits( rhs ), " ):" ); \
+  ::ftl::println( ::ftl::io::bits( m_value ), " " #OP " ", rhs ); \
+  ::ftl::println( ::ftl::io::bits( rhs ) ); \
   ::ftl::println( ::ftl::io::bits( m_value OP rhs ), " : ", m_name ); \
-  return bits<T>( num, "( " + m_name + #OP + rhs.name( ) + " )" ); \
+  return { m_value OP rhs, "( temp copy of " + m_name + #OP + " )" }; \
+}
+#define FTL_DEBUG_BITS_ASSIGN_OPERATOR( OP ) template<typename U> \
+bits operator##OP( U rhs ) { \
+  ::ftl::println( ::ftl::io::bits( m_value ), " " #OP " ", rhs );  \
+  ::ftl::println( ::ftl::io::bits( rhs ) ); \
+  ::ftl::println( ::ftl::io::bits( m_value OP rhs ), " : ", m_name ); \
+  return *this; \
 }
       FTL_DEBUG_BITS_OPERATOR( + );
       FTL_DEBUG_BITS_OPERATOR( - );
@@ -41,17 +49,19 @@ bits operator##OP( U rhs ) { \
       FTL_DEBUG_BITS_OPERATOR( ^ );
       FTL_DEBUG_BITS_OPERATOR( & );
       FTL_DEBUG_BITS_OPERATOR( | );
-      FTL_DEBUG_BITS_OPERATOR( = );
-      FTL_DEBUG_BITS_OPERATOR( += );
-      FTL_DEBUG_BITS_OPERATOR( -= );
-      FTL_DEBUG_BITS_OPERATOR( /= );
-      FTL_DEBUG_BITS_OPERATOR( *= );
-      FTL_DEBUG_BITS_OPERATOR( %= );
-      FTL_DEBUG_BITS_OPERATOR( ^= );
-      FTL_DEBUG_BITS_OPERATOR( &= );
-      FTL_DEBUG_BITS_OPERATOR( |= );
+      FTL_DEBUG_BITS_OPERATOR( << );
+      FTL_DEBUG_BITS_OPERATOR( >> );
+      FTL_DEBUG_BITS_ASSIGN_OPERATOR( = );
+      FTL_DEBUG_BITS_ASSIGN_OPERATOR( += );
+      FTL_DEBUG_BITS_ASSIGN_OPERATOR( -= );
+      FTL_DEBUG_BITS_ASSIGN_OPERATOR( /= );
+      FTL_DEBUG_BITS_ASSIGN_OPERATOR( *= );
+      FTL_DEBUG_BITS_ASSIGN_OPERATOR( %= );
+      FTL_DEBUG_BITS_ASSIGN_OPERATOR( ^= );
+      FTL_DEBUG_BITS_ASSIGN_OPERATOR( &= );
+      FTL_DEBUG_BITS_ASSIGN_OPERATOR( |= );
 #undef FTL_DEBUG_BITS_OPERATOR
-
+#undef FTL_DEBUG_BITS_ASSIGN_OPERATOR
     private:
       T m_value;
       ::std::string m_name;

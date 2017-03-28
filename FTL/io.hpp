@@ -17,14 +17,14 @@ namespace ftl {
           ::std::stringstream ss;
           ss << pad.object;
           std::string obj_stream( ss.str( ) );
-          for( int32_t i{ static_cast<int32_t>( pad.pad - obj_stream.size( ) ) }; i > 0; --i ) {
+          for( int32_t i{ static_cast< int32_t >( pad.pad - obj_stream.size( ) ) }; i > 0; --i ) {
             os << pad.pad_byte;
           }
           return os << obj_stream;
         }
       };
       template<typename T>
-      struct right_pad{
+      struct right_pad {
         const T &object;
         uint32_t pad;
         char pad_byte;
@@ -33,7 +33,7 @@ namespace ftl {
           ss << pad.object;
           std::string obj_stream( ss.str( ) );
           os << obj_stream;
-          for( int i{ static_cast<int32_t>( pad.pad - obj_stream.size( ) ) }; i > 0; --i ) {
+          for( int i{ static_cast< int32_t >( pad.pad - obj_stream.size( ) ) }; i > 0; --i ) {
             os << pad.pad_byte;
           }
           return os;
@@ -51,8 +51,16 @@ namespace ftl {
 
 
     template<typename T>
-    ::std::bitset<sizeof( T )> bits( const T &value ) {
-      return ::std::bitset<sizeof( T )>( value );
+    ::std::string bits( const T &value, size_t chunk_size = 4 ) {
+      ::std::string str{ ::std::bitset<sizeof( T ) * CHAR_BIT>( value ).to_string() };
+      int64_t i{ -1 };
+      for( auto it{ str.begin( ) }; it != str.end( ); ++it, ++i) {
+        if( ( i != 0 ) && ( i % (chunk_size + 1 )== 0 ) ) {
+          i = 0;
+          it = str.insert( it, ' ' );
+        }
+      }
+      return str;
     }
   } // io
 
