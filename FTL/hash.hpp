@@ -24,7 +24,7 @@ namespace ftl {
   template<typename Result>
   struct fnv1 {
     constexpr fnv1( ) = default;
-    static_assert( std::is_integral<Result>::value, "FNV-1a hash function requires an integer type for the result of the hash." );
+    static_assert( std::is_integral<Result>::value, "FNV-1 hash function requires an integer type for the result of the hash." );
     using hash_type = Result;
 
     constexpr void start( size_t size ) { }
@@ -81,11 +81,9 @@ namespace ftl {
     using hash_type = Result;
 
     constexpr void start( size_t size ) {
-      ::ftl::println( "ftlhash::start: size=", size );
       m_hash *= ~(size << 13) ^ hash_traits<::ftl::ftlhash<hash_type> >::prime;
     }
     constexpr void insert( hash_type block ) {
-      ::ftl::println( "ftlhash::insert: block=", block );
       m_hash ^= block;
       m_hash ^= ( block << 7 ) ^ ~( block >> 11 );
       m_hash *= hash_traits<::ftl::ftlhash<hash_type> >::prime;
@@ -95,7 +93,6 @@ namespace ftl {
       return finish( );
     }
     constexpr hash_type finish( ) {
-      ::ftl::println( "ftlhash::finish:" );
       m_hash ^= ~( m_hash << 7 ) ^ ~( m_hash >> 11 );
       hash_type result{ m_hash };
       // reset state for next hash
@@ -104,7 +101,7 @@ namespace ftl {
     }
 
   private:
-    ::ftl::debug::bits<hash_type> m_hash{ hash_traits<::ftl::ftlhash<hash_type> >::seed, "ftl::hash::value" };
+    hash_type m_hash{ hash_traits<::ftl::ftlhash<hash_type> >::seed };
   };
 
   // According to the top post here: http://softwareengineering.stackexchange.com/a/145633

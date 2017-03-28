@@ -102,8 +102,22 @@ namespace ftl {
     const_iterator cend( ) const noexcept { return m_values.cend( ); }
     //
     template<typename... Args>
-    iterator emplace( Args&&... args );
-    void clear( );
+    ::std::pair<iterator, bool> emplace( Args&&... args ) {
+      m_values.emplace_back( ::std::forward<Args>( args )... );
+      const hash_type hash{ m_hasher( m_values.back( ).first ) };
+      insert_return_type collision{ hash_collision( hash ) };
+      if( collision.second ) {
+        m_values.pop_back( );
+        return { collision.first, false };
+      } else {
+        insert_hash( m_hashes, { hash, m_values.size( ) - 1 } );
+        return { m_values.end( )--, true };
+      }
+    }
+    void clear( ) {
+      m_hashes.clear( );
+      m_values.clear( );
+    }
     template<typename T>
     insert_return_type insert( T&& value );
 
@@ -257,8 +271,8 @@ namespace ftl {
   private:
     static const std::pair< hash_type, size_type > tombstone{ 0u, 0u };
 
-    ftl::vector< std::pair< hash_type, size_type > > m_hashes;
-    ftl::vector< value_type > m_values;
+    ftl::vector< std::pair< hash_type, size_type >, allocator_type > m_hashes;
+    ftl::vector< value_type, allocator_type > m_values;
     hasher m_hasher;
     key_equal m_key_equal;
     float m_max_load_factor{ 0.5f };

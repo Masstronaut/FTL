@@ -46,13 +46,13 @@ namespace ftl {
     }
     template<typename T>
     detail::right_pad<T> right_pad( const T &object, uint32_t pad, char pad_byte = ' ' ) {
-      return detail::left_pad<T>{ object, pad, pad_byte };
+      return detail::right_pad<T>{ object, pad, pad_byte };
     }
 
 
-    template<typename T>
+    template<typename T, size_t Bits = sizeof(T) * CHAR_BIT>
     ::std::string bits( const T &value, size_t chunk_size = 4 ) {
-      ::std::string str{ ::std::bitset<sizeof( T ) * CHAR_BIT>( value ).to_string() };
+      ::std::string str{ ::std::bitset<Bits>( value ).to_string( ) };
       int64_t i{ -1 };
       for( auto it{ str.begin( ) }; it != str.end( ); ++it, ++i) {
         if( ( i != 0 ) && ( i % (chunk_size + 1 )== 0 ) ) {
@@ -64,6 +64,10 @@ namespace ftl {
     }
   } // io
 
+  // Type-safe print function that automatically appends the data with a newline.
+  inline void println() {
+    std::cout << std::endl;
+  }
   // Type-safe print function that automatically appends the data with a newline.
   template<typename T>
   inline void println( const T &arg ) {
