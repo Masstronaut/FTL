@@ -12,10 +12,9 @@
 #include <cassert>
 #include <iostream>
 #include <memory>
-
-  // All content copyright (C) Allan Deutsch 2017. All rights reserved.
+#include <numeric> // std::accumulate
 #include <cstdint>
-#include <iostream>
+
 // User defined literal conversion to convert a string in the form "foo"_hash to the corresponding Murmur2A hash value
 constexpr uint64_t operator""_hash(const char *str, size_t size) {
   return ::ftl::hash<const char *, ::ftl::murmur2a<uint64_t>>{}( str, size );
@@ -42,16 +41,21 @@ struct nibble_distribution {
       os << ::ftl::io::right_pad(::std::abs( 1.f 
                                              - static_cast< float >( rhs[ i ] ) 
                                              * ( 1.f / static_cast< float >( average ) ) 
-                                 )
+                                           )
                                  , 10
-      );
+                                );
     }
-    os << ::ftl::io::right_pad( rhs.RMS_quality( ), 10 );
+    os << ::ftl::io::right_pad( rhs.RMSE( ), 10 );
     return os;
   }
-  double RMS_quality( ) const noexcept {
-    uint32_t sum{ 0 };
-    for( auto it : values ) sum += it;
+  uint32_t sum_values( ) const noexcept {
+    return ::std::accumulate( values.cbegin( ), values.cend( ), 0u );
+  }
+  uint32_t avg_value( ) const noexcept {
+    return sum_values( ) / values.size( );
+  }
+  double RMSE( ) const noexcept {
+    const uint32_t sum{ sum_values() };
     const int32_t average{ static_cast< int32_t >( sum / values.size( ) ) };
     ::std::array<int32_t, 16> errors;
     for( unsigned i{ 0 }; i < values.size( ); ++i ) {
@@ -66,6 +70,8 @@ struct nibble_distribution {
     mean_square_error *= weight;
     return ::std::sqrt( mean_square_error );
   }
+  double NRMSE( ) const noexcept {
+    double rmse
 };
 
 template<typename T>
@@ -202,7 +208,8 @@ int main() {
   //ftl::vector<int> keys;
   //keys.reserve( 100000000 );
   //for( int i{ 0 }; i < 100000000; ++i ) keys.push_back( i );
-  ftl::vector<std::string> keys = load_dict( "engdict.txt" );
+  const ftl::vector<std::string> keys = load_dict( "engdict.txt" );
+  ftl::println( "Dictionary loaded with ", keys.size(), " keys." );
   uint64_t hash_result_t;
   ftl::inline_vector<profile_results, 4> results;
   results.push_back( profile_hasher< ftl::ftlhash< decltype( hash_result_t )>, decltype( keys )::value_type >( keys ) );
