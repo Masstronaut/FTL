@@ -17,7 +17,8 @@ namespace ftl {
           ::std::stringstream ss;
           ss << pad.object;
           std::string obj_stream( ss.str( ) );
-          for( int32_t i{ static_cast< int32_t >( pad.pad - obj_stream.size( ) ) }; i > 0; --i ) {
+          const int32_t amount{ static_cast< int32_t >( pad.pad - obj_stream.size( ) ) };
+          for( int32_t i{ 0 }; i < amount; ++i ) {
             os << pad.pad_byte;
           }
           return os << obj_stream;
@@ -33,7 +34,8 @@ namespace ftl {
           ss << pad.object;
           std::string obj_stream( ss.str( ) );
           os << obj_stream;
-          for( int i{ static_cast< int32_t >( pad.pad - obj_stream.size( ) ) }; i > 0; --i ) {
+          const int32_t amount{ static_cast< int32_t >( pad.pad - obj_stream.size( ) ) };
+          for( int32_t i{ 0 }; i < amount; ++i ) {
             os << pad.pad_byte;
           }
           return os;

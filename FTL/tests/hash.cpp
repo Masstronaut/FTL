@@ -36,25 +36,19 @@ struct nibble_distribution {
     uint32_t sum{ 0 };
     for( auto it : rhs.values ) sum += it;
     const int32_t average{ static_cast< int32_t >( sum / rhs.values.size( ) ) };
-
     for( size_t i{ 0 }; i < rhs.values.size( ); ++i ) {
-      os << ::ftl::io::right_pad(::std::abs( 1.f 
-                                             - static_cast< float >( rhs[ i ] ) 
-                                             * ( 1.f / static_cast< float >( average ) ) 
-                                           )
-                                 , 10
-                                );
+      os << ::ftl::io::left_pad( 10, ::std::abs( average - static_cast< int32_t >( rhs.values[ i ] ) ) );
     }
-    os << ::ftl::io::right_pad( rhs.RMSE( ), 10 );
+    os << " " << ::ftl::io::right_pad( static_cast< float >( rhs.normalized_std_dev( ) ), 11 );
     return os;
   }
   uint32_t sum_values( ) const noexcept {
     return ::std::accumulate( values.cbegin( ), values.cend( ), 0u );
   }
   uint32_t avg_value( ) const noexcept {
-    return sum_values( ) / values.size( );
+    return sum_values( ) / static_cast< uint32_t >( values.size( ) );
   }
-  double RMSE( ) const noexcept {
+  double variance( ) const noexcept {
     const uint32_t sum{ sum_values() };
     const int32_t average{ static_cast< int32_t >( sum / values.size( ) ) };
     ::std::array<int32_t, 16> errors;
@@ -68,10 +62,30 @@ struct nibble_distribution {
       mean_square_error += it * it;
     }
     mean_square_error *= weight;
-    return ::std::sqrt( mean_square_error );
+    return mean_square_error;
   }
-  double NRMSE( ) const noexcept {
-    double rmse
+  double std_dev( ) const noexcept {
+    return ::std::sqrt( variance( ) );
+  }
+  double normalized_variance( ) const noexcept {
+    const double average{ static_cast< double >( sum_values( ) / values.size( ) ) };
+    ::std::array<double, 16> errors;
+    for( unsigned i{ 0 }; i < values.size( ); ++i ) {
+      double error{ ::std::abs( average -  values[ i ] ) / average  };
+      errors[ i ] = error;
+    }
+    const double weight{ 1. / static_cast< double >( values.size( ) ) };
+    double variance{ 0. };
+    for( auto it : errors ) {
+      variance += it * it;
+    }
+    variance *= weight;
+    return variance;
+  }
+  double normalized_std_dev( ) const noexcept {
+    return ::std::sqrt( normalized_variance( ) );
+  }
+
 };
 
 template<typename T>
@@ -109,23 +123,18 @@ struct hash_distribution {
       values[  0 ][ ( hash & 0xF ) ]++;
     }
   }
-
-  double RMS_quality( ) const noexcept {
-    uint32_t sum{ 0 };
-    for( auto it : values ) sum += it;
-    const int32_t average{ static_cast< int32_t >( sum / values.size( ) ) };
-    ::std::array< int32_t, sizeof( T ) * 2 > errors;
-    for( unsigned i{ 0 }; i < 16; ++i ) {
-      int32_t error{ ::std::abs( average - static_cast< int32_t >( values[ i ] ) ) };
-      errors[ i ] = error;
+  double fitness( ) const noexcept {
+    ::std::array<double, 16> errors;
+    for( unsigned i{ 0 }; i < values.size( ); ++i ) {
+      errors[ i ] = values[ i ].normalized_std_dev( );
     }
-    constexpr double weight{ 1. / static_cast< double >( values.size( ) ) };
+    const double weight{ 1. / static_cast< double >( values.size( ) ) };
     double mean_square_error{ 0 };
     for( auto it : errors ) {
       mean_square_error += it * it;
     }
-    mean_square_error *= weight;
-    return ::std::sqrt( mean_square_error );
+    //mean_square_error *= weight;
+    return ::std::sqrt(mean_square_error);
   }
   friend ::std::ostream& operator<<( ::std::ostream &os, const hash_distribution &rhs ) {
     // print table header
@@ -138,7 +147,7 @@ struct hash_distribution {
     for( unsigned i{ 0 }; i < rhs.values.size( ); ++i ) {
       os << std::endl << ::ftl::io::left_pad( 3, i ) << rhs.values[ i ];
     }
-    return os;
+    return os << std::endl << "Distribution fitness: " << rhs.fitness( );
   }
 };
 
@@ -148,17 +157,18 @@ struct profile_results {
   std::string name;
   hash_distribution<uint64_t> distribution;
   friend ::std::ostream& operator<<( std::ostream& os, const profile_results &pr ) {
-    return os 
+    return os
       << pr.name << " timing results:\n"
       << "Best case: " << pr.best << ".\n"
       << "Mean case: " << pr.mean << ".\n"
-      << "Worst case: " << pr.worst << "." << std::endl
-      << "Distribution:\n" << pr.distribution;
+      << "Worst case: " << pr.worst << ".\n"
+      << "Hash fitness: " << pr.distribution.fitness( );
+      //<< "Distribution:\n" << pr.distribution;
   }
 };
 template<typename Hasher, typename T>
 profile_results profile_hasher( const ftl::vector<T>& keys, size_t iterations = 10 ) {
-  static_assert( sizeof( ::ftl::hash_traits<Hasher>::hash_type ) == 8, "Currently only supports 64-bit hashes." );
+  static_assert( sizeof( typename ::ftl::hash_traits<Hasher>::hash_type ) == 8, "Currently only supports 64-bit hashes." );
   ftl::hash<T, Hasher> hasher;
   ftl::inline_vector<double, 10> times;
   ftl::vector< typename ftl::hash_traits< Hasher >::hash_type > results;
@@ -209,6 +219,9 @@ int main() {
   //keys.reserve( 100000000 );
   //for( int i{ 0 }; i < 100000000; ++i ) keys.push_back( i );
   const ftl::vector<std::string> keys = load_dict( "engdict.txt" );
+  ftl::vector<int> int_keys;
+  int_keys.reserve( 10000000 );
+  for( int i{ 0 }; i < 10000000; ++i ) int_keys.push_back( i );
   ftl::println( "Dictionary loaded with ", keys.size(), " keys." );
   uint64_t hash_result_t;
   ftl::inline_vector<profile_results, 4> results;
@@ -216,6 +229,10 @@ int main() {
   results.push_back( profile_hasher< ftl::murmur2a<decltype( hash_result_t )>, decltype( keys )::value_type >( keys ) );
   results.push_back( profile_hasher< ftl::fnv1<    decltype( hash_result_t )>, decltype( keys )::value_type >( keys ) );
   results.push_back( profile_hasher< ftl::fnv1a<   decltype( hash_result_t )>, decltype( keys )::value_type >( keys ) );
+  results.push_back( profile_hasher< ftl::ftlhash< decltype( hash_result_t )>, decltype( int_keys )::value_type >( int_keys ) );
+  results.push_back( profile_hasher< ftl::murmur2a<decltype( hash_result_t )>, decltype( int_keys )::value_type >( int_keys ) );
+  results.push_back( profile_hasher< ftl::fnv1<    decltype( hash_result_t )>, decltype( int_keys )::value_type >( int_keys ) );
+  results.push_back( profile_hasher< ftl::fnv1a<   decltype( hash_result_t )>, decltype( int_keys )::value_type >( int_keys ) );
   for( auto& it : results ) ftl::println( it );
 
 

@@ -213,7 +213,7 @@ template<typename C = T> void test_##TEST(typename std::enable_if_t<ftl::has_##T
   // All content copyright (C) Allan Deutsch 2017. All rights reserved.
 #include <cstdint>
 #include <iostream>
-
+/*
 int main2() {
 
   system( "pause" );
@@ -278,3 +278,4 @@ int main2() {
 
   return 0;
 }
+*/
