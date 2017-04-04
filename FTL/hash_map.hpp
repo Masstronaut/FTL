@@ -118,8 +118,10 @@ namespace ftl {
       m_hashes.clear( );
       m_values.clear( );
     }
-    template<typename T>
-    insert_return_type insert( T&& value );
+
+    insert_return_type insert( value_type&& value ) {
+      return emplace( ::std::forward<value_type&&>( value ) );
+    }
 
     insert_return_type insert( const_reference value ) {
       insert_return_type result{ this->end( ), false };
@@ -131,6 +133,19 @@ namespace ftl {
         insert_hash( m_hashes, { hash, m_values.size( ) - 1 } );
       }
       return { --m_values.end( ), true };
+    }
+
+    template<typename M>
+    insert_return_type insert_or_assign( const key_type &k, M&& obj ) {
+      hash_type hash{ m_hasher( k ) };
+      auto collision{ hash_collision( hash ) };
+      if( collision == m_hashes.end( ) ) {
+        return insert( std::move( value_type{ k, std::move( obj ) } ) );
+      } else {
+        m_values[ collision->second ].first = k;
+        m_values[ collision->second ].second = std::move( obj );
+        return { { m_values.begin( ) + collision->second }, true };
+      }
     }
 
     void reserve( size_type n ) {
@@ -146,7 +161,6 @@ namespace ftl {
       m_values.reserve( new_capacity );
       m_capacity = new_size;
     }
-
 
     iterator find( const key_type &key ) {
       hash_type hash{ m_hasher( key ) };
@@ -269,6 +283,7 @@ namespace ftl {
     }
 
   private:
+    using probe_table_iterator = ftl::vector<::std::pair<hash_type, size_type>>::iterator;
     static const std::pair< hash_type, size_type > tombstone{ 0u, 0u };
 
     ftl::vector< std::pair< hash_type, size_type >, allocator_type > m_hashes;
@@ -284,13 +299,15 @@ namespace ftl {
 
 
     size_type max_probe_count( ) const noexcept { return m_max_probe_count; }
-    insert_return_type hash_collision( hash_type hash ) {
-      size_type index{ it.first % new_size };
+
+    probe_table_iterator hash_collision( hash_type hash ) {
+      size_type index{ hash % m_hashes.size( ) };
       for( size_type i{ 0 }; i < m_max_probe_count; ++i ) {
-        if( m_hashes[ index + i ].first == hash ) return { {m_hashes[ index + i ].second }, true };
+        if( m_hashes[ index + i ].first == hash ) return { m_hashes.begin() + (index + i) };
       }
-      return { this->end( ), false };
+      return { m_hashes.end( ) };
     }
+
     void insert_hash( ftl::vector< std::pair<hash_type, size_type> > &vec, std::pair<hash_type, size_type> hash ) {
       size_type index{ it.first % new_size };
       unsigned probe_count{ 0 };
