@@ -197,7 +197,7 @@ namespace ftl {
     using result_type = typename ::ftl::hash_traits<Hasher>::hash_type;
     constexpr hash( ) = default;
     result_type operator()( const Key &key ) {
-      ::ftl::detail::hash<Hasher>( ( const char * )&reinterpret_cast< const char & >( key ), sizeof( Key ) );
+      return ::ftl::detail::hash<Hasher>( ( const char * )&reinterpret_cast< const char & >( key ), sizeof( Key ) );
     }
   };
   // specializations

@@ -34,7 +34,7 @@ namespace ftl {
     default_allocator(const default_allocator<U> &alloc) noexcept;
     ~default_allocator() {}
 
-    pointer address( reference x ) const noexcept {
+    static pointer address( reference x ) noexcept {
       return reinterpret_cast<pointer>( &reinterpret_cast<char&>( x ) );
     }
     const_pointer address( const_reference x ) const noexcept {

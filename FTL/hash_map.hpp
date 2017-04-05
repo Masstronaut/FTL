@@ -135,17 +135,60 @@ namespace ftl {
       return { --m_values.end( ), true };
     }
 
+    /*
+    * If a key equivalent to k already exists in the container, 
+    * assigns std::forward<M>(obj) to the mapped_type corresponding to the key k. 
+    * If the key does not exist, inserts the new value as if by insert, 
+    * constructing it from value_type(k, std::forward<M>(obj))
+    */
     template<typename M>
     insert_return_type insert_or_assign( const key_type &k, M&& obj ) {
       hash_type hash{ m_hasher( k ) };
       auto collision{ hash_collision( hash ) };
       if( collision == m_hashes.end( ) ) {
-        return insert( std::move( value_type{ k, std::move( obj ) } ) );
+        return insert( std::move( value_type{ k, std::forward<M>( obj ) } ) );
       } else {
         m_values[ collision->second ].first = k;
-        m_values[ collision->second ].second = std::move( obj );
-        return { { m_values.begin( ) + collision->second }, true };
+        m_values[ collision->second ].second = std::forward<M>( obj );
+        return { { m_values.begin( ) + collision->second }, false };
       }
+    }
+
+    /*
+    * If a key equivalent to k already exists in the container,
+    * assigns std::forward<M>(obj) to the mapped_type corresponding to the key k.
+    * If the key does not exist, inserts the new value as if by insert,
+    * constructing it from value_type(std::move(k), std::forward<M>(obj))
+    */
+    template<typename M>
+    insert_return_type insert_or_assign( key_type &&k, M&& obj ) {
+      hash_type hash{ m_hasher( k ) };
+      auto collision{ hash_collision( hash ) };
+      if( collision == m_hashes.end( ) ) {
+        return insert( std::move( value_type{ std::move( k ), std::forward<M>( obj ) } ) );
+      } else {
+        m_values[ collision->second ].first = std::move( k );
+        m_values[ collision->second ].second = std::forward<M>( obj );
+        return { { m_values.begin( ) + collision->second }, false };
+      }
+    }
+
+    /* While the hint variant of insert_or_assign from std::unordered_map is available,
+     * this implementation can't use it, and as such this is equivalent to calling the 
+     * regular insert_or_assign method. */
+    template<typename M>
+    insert_return_type insert_or_assign( const_iterator hint, const key_type &k, M&& obj ) {
+      ( void )hint;
+      return insert_or_assign( k, std::forward<M>( obj ) );
+    }
+
+    /* While the hint variant of insert_or_assign from std::unordered_map is available,
+    * this implementation can't use it, and as such this is equivalent to calling the
+    * regular insert_or_assign method. */
+    template<typename M>
+    insert_return_type insert_or_assign( const_iterator hint, key_type &&k, M&& obj ) {
+      ( void )hint;
+      return insert_or_assign( std::forward<key_type>( k ), std::forward<M>( obj ) );
     }
 
     void reserve( size_type n ) {
@@ -282,6 +325,12 @@ namespace ftl {
       return m_values.cend( );
     }
 
+    iterator erase( const_iterator pos );
+
+    iterator erase( const_iterator first, const_iterator last );
+
+    size_type erase( const key_type &key );
+
   private:
     using probe_table_iterator = ftl::vector<::std::pair<hash_type, size_type>>::iterator;
     static const std::pair< hash_type, size_type > tombstone{ 0u, 0u };
@@ -300,8 +349,18 @@ namespace ftl {
 
     size_type max_probe_count( ) const noexcept { return m_max_probe_count; }
 
+    probe_table_iterator probe_key( const key_type &k ) {
+      hash_type hash{ m_hasher( k ) };
+      size_type index{ hash % m_capacity };
+      for( size_type i{ 0 }; i < m_max_probe_count; ++i ) {
+        if( m_hashes[ index + i ].first == hash 
+            && m_key_equal( k, m_values[ m_hashes[ index + i ].first ] ) )
+          return { m_hashes.begin( ) + ( index + i ) };
+      }
+    }
+
     probe_table_iterator hash_collision( hash_type hash ) {
-      size_type index{ hash % m_hashes.size( ) };
+      size_type index{ hash % m_capacity };
       for( size_type i{ 0 }; i < m_max_probe_count; ++i ) {
         if( m_hashes[ index + i ].first == hash ) return { m_hashes.begin() + (index + i) };
       }
