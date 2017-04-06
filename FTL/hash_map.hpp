@@ -120,7 +120,7 @@ namespace ftl {
     }
 
     insert_return_type insert( value_type&& value ) {
-      return emplace( ::std::forward<value_type&&>( value ) );
+      return emplace( ::std::forward<value_type>( value ) );
     }
 
     insert_return_type insert( const_reference value ) {
@@ -197,8 +197,10 @@ namespace ftl {
       size_type new_size{ ::ftl::detail::next_table_size( n ) };
       size_type new_capacity{ new_size + max_probe_count( ) };
       ftl::vector< std::pair< hash_type, size_type > > hashes( new_capacity, tombstone );
-      for(auto &it : m_hashes ){ 
-        insert_hash( hashes, it );
+      for(auto &it : m_hashes ){
+        if( it != tombstone ) {
+          insert_hash( hashes, it );
+        }
       }
       m_hashes = std::move( hashes );
       m_values.reserve( new_capacity );
@@ -384,8 +386,41 @@ namespace ftl {
         assert( false && "An internal error has occurred. Please file a report with the FTL project on github.com/masstronaut/FTL " );
       }
     }
+    void erase_hash( ftl::vector< std::pair<hash_type, size_type> > &vec, hash_type hash ) {
+
+    }
   };
 
+
+
+
+  template<typename Key,
+    typename Value,
+    typename Hash = std::hash<Key>,
+    typename KeyEqual = std::equal_to<Key>,
+    typename Allocator = ftl::default_allocator< std::pair<const Key, Value> >
+  >
+    hash_map<Key, Value, Hash, KeyEqual, Allocator>::iterator hash_map<Key, Value, Hash, KeyEqual, Allocator>::erase( const_iterator pos ) {
+    assert( pos != this->end( ) );
+    hash_type hash{ this->m_hasher( pos->first ) };
+    auto hash_iter{ probe_key( pos->first ) };
+    probe_table_iterator replacement_hash_iter{ probe_key( this->m_values.back( ) ) };
+    replacement_hash_iter->second = ::std::distance( m_values.begin( ), pos );
+    ::std::swap( *pos, this->m_values.back( ) );
+    this->m_values.pop_back( );
+    this->erase_hash( this->m_hashes, hash );
+    return pos;
+  }
+
+  template<typename Key,
+    typename Value,
+    typename Hash = std::hash<Key>,
+    typename KeyEqual = std::equal_to<Key>,
+    typename Allocator = ftl::default_allocator< std::pair<const Key, Value> >
+  >
+    hash_map<Key, Value, Hash, KeyEqual, Allocator>::size_type hash_map<Key, Value, Hash, KeyEqual, Allocator>::erase( const key_type &key ) {
+    return erase( find( key ) );
+  }
 
 }
 
