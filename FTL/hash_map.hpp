@@ -434,7 +434,7 @@ namespace ftl {
       return this->m_values[ iter->second ].second;
     }
     else {
-      return emplace( key )->second;
+      return insert( { key, {} } ).first->second;
     }
   }
 
@@ -445,7 +445,7 @@ namespace ftl {
     if( iter != this->m_hashes.end( ) ) {
       return this->m_values[ iter->second ].second;
     } else {
-      return emplace( key )->second;
+      return insert( { key,{ } } ).first->second;
     }
   }
 

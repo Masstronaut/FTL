@@ -211,24 +211,24 @@ namespace ftl {
   template<typename T, typename Alloc>
   vector<T, Alloc>::~vector( ) {
     if( this->capacity( ) != 0 ) {
-      clear( );
+      this->clear( );
       m_alloc.deallocate( m_begin, m_capacity );
     }
-    m_begin = nullptr;
-    m_end = nullptr;
-    m_capacity = 0;
+    this->m_begin = nullptr;
+    this->m_end = nullptr;
+    this->m_capacity = 0;
   }
 
   // assignment
   template<typename T, typename Alloc>
   vector<T, Alloc>& vector<T, Alloc>::operator=( const vector<T, Alloc> &other ) {
-    clear( );
-    assign( other.begin( ), other.end( ) );
+    this->clear( );
+    this->assign( other.begin( ), other.end( ) );
     return *this;
   }
   template<typename T, typename Alloc>
   vector<T, Alloc>& vector<T, Alloc>::operator=( vector &&other ) {
-    clear( );
+    this->clear( );
     m_begin = other.m_begin;
     m_end = other.m_end;
     m_capacity = other.m_capacity;
@@ -239,8 +239,8 @@ namespace ftl {
   }
   template<typename T, typename Alloc>
   vector<T, Alloc>& vector<T, Alloc>::operator=( ::std::initializer_list<T> il ) {
-    clear( );
-    assign( il );
+    this->clear( );
+    this->assign( il );
     return *this;
   }
 
@@ -413,19 +413,19 @@ namespace ftl {
   template<typename T, typename Alloc>
   template<typename InputIterator>
   void vector<T, Alloc>::assign( InputIterator first, InputIterator last ) {
-    clear( );
-    reserve( static_cast< size_type >( ::std::distance( first, last ) ) );
+    this->clear( );
+    this->reserve( static_cast< size_type >( ::std::distance( first, last ) ) );
     for( auto it{ first }; it != last; ++it ) {
-      emplace_back( *it );
+      this->emplace_back( *it );
     }
   }
 
   template<typename T, typename Alloc>
   void vector<T, Alloc>::assign( size_type n, const value_type &val ) {
-    clear( );
-    reserve( n );
+    this->clear( );
+    this->reserve( n );
     for( size_type i{ 0 }; i < n; ++i ) {
-      emplace_back( std::forward<decltype( val )>( val ) );
+      this->emplace_back( ::std::forward<decltype( val )>( val ) );
     }
   }
 
