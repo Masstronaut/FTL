@@ -7,69 +7,8 @@
 
 namespace ftl {
   namespace debug {
-#if defined(_DEBUG)
-    template<typename T>
-    struct bits {
-      bits( T num, const ::std::string &name )
-        : m_value( num )
-        , m_name( name ) { }
-
-      bits( T num )
-        : m_value( num ) { 
-        ::std::stringstream ss;
-        ss << num;
-        m_name = ss.str( );
-      }
-      ::std::string name( ) const noexcept {
-        return m_name;
-      }
-      operator T( ) const noexcept {
-        return m_value;
-      }
-
-#define FTL_DEBUG_BITS_OPERATOR( OP ) template<typename U> \
-bits operator##OP( U rhs ) { \
-  ::ftl::println( ::ftl::io::bits( m_value ), " " #OP " ", rhs ); \
-  ::ftl::println( ::ftl::io::bits( rhs ) ); \
-  ::ftl::println( ::ftl::io::bits( m_value OP rhs ), " : ", m_name ); \
-  return { m_value OP rhs, "( temp copy of " + m_name + #OP + " )" }; \
-}
-#define FTL_DEBUG_BITS_ASSIGN_OPERATOR( OP ) template<typename U> \
-bits operator##OP( U rhs ) { \
-  ::ftl::println( ::ftl::io::bits( m_value ), " " #OP " ", rhs );  \
-  ::ftl::println( ::ftl::io::bits( rhs ) ); \
-  ::ftl::println( ::ftl::io::bits( m_value OP rhs ), " : ", m_name ); \
-  return *this; \
-}
-      FTL_DEBUG_BITS_OPERATOR( + );
-      FTL_DEBUG_BITS_OPERATOR( - );
-      FTL_DEBUG_BITS_OPERATOR( / );
-      FTL_DEBUG_BITS_OPERATOR( * );
-      FTL_DEBUG_BITS_OPERATOR( % );
-      FTL_DEBUG_BITS_OPERATOR( ^ );
-      FTL_DEBUG_BITS_OPERATOR( & );
-      FTL_DEBUG_BITS_OPERATOR( | );
-      FTL_DEBUG_BITS_OPERATOR( << );
-      FTL_DEBUG_BITS_OPERATOR( >> );
-      FTL_DEBUG_BITS_ASSIGN_OPERATOR( = );
-      FTL_DEBUG_BITS_ASSIGN_OPERATOR( += );
-      FTL_DEBUG_BITS_ASSIGN_OPERATOR( -= );
-      FTL_DEBUG_BITS_ASSIGN_OPERATOR( /= );
-      FTL_DEBUG_BITS_ASSIGN_OPERATOR( *= );
-      FTL_DEBUG_BITS_ASSIGN_OPERATOR( %= );
-      FTL_DEBUG_BITS_ASSIGN_OPERATOR( ^= );
-      FTL_DEBUG_BITS_ASSIGN_OPERATOR( &= );
-      FTL_DEBUG_BITS_ASSIGN_OPERATOR( |= );
-#undef FTL_DEBUG_BITS_OPERATOR
-#undef FTL_DEBUG_BITS_ASSIGN_OPERATOR
-    private:
-      T m_value;
-      ::std::string m_name;
-    };
-#else
     template<typename T>
     using bits = T;
-#endif
   }
  
 

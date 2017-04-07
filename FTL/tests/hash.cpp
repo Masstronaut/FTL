@@ -128,7 +128,7 @@ struct hash_distribution {
     for( unsigned i{ 0 }; i < values.size( ); ++i ) {
       errors[ i ] = values[ i ].normalized_std_dev( );
     }
-    const double weight{ 1. / static_cast< double >( values.size( ) ) };
+    //const double weight{ 1. / static_cast< double >( values.size( ) ) };
     double mean_square_error{ 0 };
     for( auto it : errors ) {
       mean_square_error += it * it;
@@ -212,7 +212,7 @@ ftl::vector<std::string> load_dict( const std::string& path ) {
   return words;
 }
 
-int main() {
+int main3() {
   //constexpr uint64_t hash{ "Hello world"_hash };
   //ftl::println( "\"Hello world\"_hash is ", hash, "." );
   //ftl::vector<int> keys;

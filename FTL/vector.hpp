@@ -227,7 +227,7 @@ namespace ftl {
     return *this;
   }
   template<typename T, typename Alloc>
-  vector<T, Alloc>& vector<T, Alloc>::operator=( vector<T, Alloc> &&other ) {
+  vector<T, Alloc>& vector<T, Alloc>::operator=( vector &&other ) {
     clear( );
     m_begin = other.m_begin;
     m_end = other.m_end;
@@ -293,7 +293,7 @@ namespace ftl {
   void vector<T, Alloc>::reserve( size_type elements ) {
     if( capacity( ) >= elements ) return;
 
-    pointer new_buffer = m_alloc.allocate( elements );
+    pointer new_buffer{ ::std::allocator_traits<Alloc>::allocate( m_alloc, elements ) };
     pointer temp_begin = begin( ), temp_end = end( );
     m_begin = m_end = new_buffer;
     size_type old_capacity{ capacity( ) };
@@ -326,7 +326,7 @@ namespace ftl {
   */
   template<typename T, typename Alloc>
   typename vector<T, Alloc>::iterator vector<T, Alloc>::last( ) const noexcept {
-    if( this->empty( ) ) ) return this->end( );
+    if( this->empty( ) ) return this->end( );
     else return m_begin + ( this->size( ) - 1 );
   }
 
@@ -358,12 +358,12 @@ namespace ftl {
 
 
   template<typename T, typename Alloc>
-  typename vector<T, Alloc>::iterator vector<T, Alloc>::get_iterator( const_reference val ) const noexcept {
+  typename vector<T, Alloc>::iterator vector<T, Alloc>::get_iterator( const_reference value ) const noexcept {
     const_pointer addr{ allocator_type::address( value ) };
     return get_iterator( addr );
   }
   template<typename T, typename Alloc>
-  typename vector<T, Alloc>::iterator vector<T, Alloc>::get_iterator( const_pointer val ) const noexcept {
+  typename vector<T, Alloc>::iterator vector<T, Alloc>::get_iterator( const_pointer value ) const noexcept {
     if( value < m_begin ) return this->end( );
     else if( value >= m_end ) return this->end( );
     else return this->begin( ) + ::std::distance( m_begin, value );

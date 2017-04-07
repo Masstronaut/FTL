@@ -7,6 +7,7 @@
 #include <tuple> // std::pair
 #include <memory> // allocator traits
 #include <utility> // std::declval
+#include <cstdint> // uint32_t
 #include "allocator.hpp"
 #include "vector.hpp"
 namespace ftl {
@@ -42,6 +43,7 @@ namespace ftl {
         if( hash_table_primes[ i ] > prime ) return hash_table_primes[ i ];
       }
       assert( false && "Hash table has exceeded its max_size." );
+      return -1;
     }
   }
   /*
@@ -57,29 +59,29 @@ namespace ftl {
   */
   template<typename Key,
     typename Value,
-    typename Hash = std::hash<Key>,
-    typename KeyEqual = std::equal_to<Key>,
-    typename Allocator = ftl::default_allocator< std::pair<const Key, Value> >
+    typename Hash = ::std::hash<Key>,
+    typename KeyEqual = ::std::equal_to<Key>,
+    typename Allocator = ftl::default_allocator< ::std::pair<const Key, Value> >
   >
   class hash_map {
   public:
     using key_type = Key;
     using mapped_type = Value;
-    using value_type = std::pair<const Key, Value>;
-    using size_type = typename std::allocator_traits<allocator_type>::size_type;
-    using difference_type = typename std::allocator_traits<allocator_type>::difference_type;
+    using value_type = ::std::pair<const Key, Value>;
+    using allocator_type = Allocator;
+    using size_type = typename ::std::uint32_t;
+    using difference_type = typename ::std::allocator_traits<allocator_type>::difference_type;
     using hasher = Hash;
     using key_equal = KeyEqual;
-    using allocator_type = Allocator;
     using reference = value_type&;
-    using const_reference = const reference;
-    using pointer = typename std::allocator_traits<allocator_type>::pointer;
-    using const_pointer = typename std::allocator_traits<allocator_type>::const_pointer;
-    using hash_type = decltype( std::declval<hasher>( )( std::declval<key_type>( ) ) );
+    using const_reference = const value_type&;
+    using pointer = typename ::std::allocator_traits<allocator_type>::pointer;
+    using const_pointer = typename ::std::allocator_traits<allocator_type>::const_pointer;
+    using hash_type = decltype( ::std::declval<hasher>( )( ::std::declval<key_type>( ) ) );
     using type = hash_map<key_type, value_type, key_equal, allocator_type>;
     using iterator = typename ::ftl::vector<value_type>::iterator;
     using const_iterator = typename ::ftl::vector<value_type>::const_iterator;
-    using insert_return_type = std::pair<iterator, bool>;
+    using insert_return_type = ::std::pair<iterator, bool>;
     // constructors/destructor
 
 
@@ -118,6 +120,9 @@ namespace ftl {
       m_hashes.clear( );
       m_values.clear( );
     }
+
+    mapped_type& operator[]( const key_type &key );
+    mapped_type& operator[]( key_type &&key );
 
     insert_return_type insert( value_type&& value ) {
       return emplace( ::std::forward<value_type>( value ) );
@@ -196,13 +201,13 @@ namespace ftl {
       m_max_probe_count = static_cast< size_type >( std::log2( n ) );
       size_type new_size{ ::ftl::detail::next_table_size( n ) };
       size_type new_capacity{ new_size + max_probe_count( ) };
-      ftl::vector< std::pair< hash_type, size_type > > hashes( new_capacity, tombstone );
+      decltype(this->m_hashes) hashes( new_capacity, tombstone );
       for(auto &it : m_hashes ){
         if( it != tombstone ) {
           insert_hash( hashes, it );
         }
       }
-      m_hashes = std::move( hashes );
+      m_hashes = hashes;
       m_values.reserve( new_capacity );
       m_capacity = new_size;
     }
@@ -329,27 +334,31 @@ namespace ftl {
 
     iterator erase( const_iterator pos );
 
-    iterator erase( const_iterator first, const_iterator last );
+    // Whether or not this should exist is still undecided
+    //iterator erase( const_iterator first, const_iterator last );
 
     size_type erase( const key_type &key );
 
   private:
-    using probe_table_iterator = ftl::vector<::std::pair<hash_type, size_type>>::iterator;
-    static const std::pair< hash_type, size_type > tombstone{ 0u, 0u };
+    using hash_entry_type = std::pair< hash_type, size_type >;
+    using hash_table_type = ftl::vector< hash_entry_type, allocator_type >;
+    using value_table_type = ftl::vector< value_type, typename allocator_type::template rebind<value_type> >;
+    using probe_table_iterator = typename ftl::vector<::std::pair<hash_type, size_type>>::iterator;
+    static const hash_entry_type tombstone;
 
-    ftl::vector< std::pair< hash_type, size_type >, allocator_type > m_hashes;
-    ftl::vector< value_type, allocator_type > m_values;
+    hash_table_type m_hashes;
+    value_table_type m_values;
     hasher m_hasher;
     key_equal m_key_equal;
     float m_max_load_factor{ 0.5f };
     size_type m_capacity{ 0u };
     size_type m_max_probe_count{ 0u };
 
-    // safety + assumption checks
-    static_assert( reinterpret_cast< type * >( nullptr ) == reinterpret_cast< type * >( nullptr )->m_hashes, "m_hashes not at the start of class." );
 
 
-    size_type max_probe_count( ) const noexcept { return m_max_probe_count; }
+    size_type max_probe_count( ) const noexcept { 
+      return m_max_probe_count; 
+    }
 
     probe_table_iterator probe_key( const key_type &k ) {
       hash_type hash{ m_hasher( k ) };
@@ -359,6 +368,7 @@ namespace ftl {
             && m_key_equal( k, m_values[ m_hashes[ index + i ].first ] ) )
           return { m_hashes.begin( ) + ( index + i ) };
       }
+      return m_hashes.end( );
     }
 
     probe_table_iterator hash_collision( hash_type hash ) {
@@ -366,14 +376,14 @@ namespace ftl {
       for( size_type i{ 0 }; i < m_max_probe_count; ++i ) {
         if( m_hashes[ index + i ].first == hash ) return { m_hashes.begin() + (index + i) };
       }
-      return { m_hashes.end( ) };
+      return m_hashes.end( );
     }
 
-    void insert_hash( ftl::vector< std::pair<hash_type, size_type> > &vec, std::pair<hash_type, size_type> hash ) {
-      size_type index{ it.first % new_size };
+    void insert_hash( hash_table_type &vec, std::pair<hash_type, size_type> hash ) {
+      size_type index{ hash % m_capacity };
       unsigned probe_count{ 0 };
       while( probe_count <= m_max_probe_count && vec[ index + probe_count ] != tombstone ) {
-        unsigned distance_from_optimal{ vec[ index + probe_count ].first % new_size };
+        unsigned distance_from_optimal{ vec[ index + probe_count ].first % m_capacity };
         if( distance_from_optimal < probe_count ) {
           std::swap( vec[ index + probe_count ], hash );
           probe_count = distance_from_optimal;
@@ -386,21 +396,18 @@ namespace ftl {
         assert( false && "An internal error has occurred. Please file a report with the FTL project on github.com/masstronaut/FTL " );
       }
     }
-    void erase_hash( ftl::vector< std::pair<hash_type, size_type> > &vec, hash_type hash ) {
+    void erase_hash( ftl::vector< std::pair<hash_type, size_type>, allocator_type > &vec, hash_type hash ) {
 
     }
   };
+  template< typename Key, typename Value, typename Hash, typename KeyEqual, typename Allocator >
+  const typename hash_map<Key, Value, Hash, KeyEqual, Allocator>::hash_entry_type hash_map<Key, Value, Hash, KeyEqual, Allocator>::tombstone{ 0u, 0u };
 
 
 
 
-  template<typename Key,
-    typename Value,
-    typename Hash = std::hash<Key>,
-    typename KeyEqual = std::equal_to<Key>,
-    typename Allocator = ftl::default_allocator< std::pair<const Key, Value> >
-  >
-    hash_map<Key, Value, Hash, KeyEqual, Allocator>::iterator hash_map<Key, Value, Hash, KeyEqual, Allocator>::erase( const_iterator pos ) {
+  template< typename Key, typename Value, typename Hash, typename KeyEqual, typename Allocator >
+  typename hash_map<Key, Value, Hash, KeyEqual, Allocator>::iterator hash_map<Key, Value, Hash, KeyEqual, Allocator>::erase( const_iterator pos ) {
     assert( pos != this->end( ) );
     hash_type hash{ this->m_hasher( pos->first ) };
     auto hash_iter{ probe_key( pos->first ) };
@@ -412,17 +419,38 @@ namespace ftl {
     return pos;
   }
 
-  template<typename Key,
-    typename Value,
-    typename Hash = std::hash<Key>,
-    typename KeyEqual = std::equal_to<Key>,
-    typename Allocator = ftl::default_allocator< std::pair<const Key, Value> >
-  >
-    hash_map<Key, Value, Hash, KeyEqual, Allocator>::size_type hash_map<Key, Value, Hash, KeyEqual, Allocator>::erase( const key_type &key ) {
+
+  template< typename Key, typename Value, typename Hash, typename KeyEqual, typename Allocator >
+  typename hash_map<Key, Value, Hash, KeyEqual, Allocator>::size_type hash_map<Key, Value, Hash, KeyEqual, Allocator>::erase( const key_type &key ) {
     return erase( find( key ) );
   }
 
-}
+
+
+  template< typename Key, typename Value, typename Hash, typename KeyEqual, typename Allocator >
+  typename hash_map< Key, Value, Hash, KeyEqual, Allocator >::mapped_type& hash_map< Key, Value, Hash, KeyEqual, Allocator >::operator[]( const key_type &key ) {
+    probe_table_iterator iter{ this->probe_key( key ) };
+    if( iter != this->m_hashes.end( ) ) {
+      return this->m_values[ iter->second ].second;
+    }
+    else {
+      return emplace( key )->second;
+    }
+  }
+
+
+  template< typename Key, typename Value, typename Hash, typename KeyEqual, typename Allocator >
+  typename hash_map< Key, Value, Hash, KeyEqual, Allocator >::mapped_type& hash_map< Key, Value, Hash, KeyEqual, Allocator >::operator[]( key_type &&key ) {
+    probe_table_iterator iter{ this->probe_key( key ) };
+    if( iter != this->m_hashes.end( ) ) {
+      return this->m_values[ iter->second ].second;
+    } else {
+      return emplace( key )->second;
+    }
+  }
+
+
+} // namespace ftl
 
 
 
