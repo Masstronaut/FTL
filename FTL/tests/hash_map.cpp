@@ -30,11 +30,7 @@ ftl::vector<std::string> load_dict( const std::string& path ) {
 }
 
 int main() {
-  //constexpr uint64_t hash{ "Hello world"_hash };
-  //ftl::println( "\"Hello world\"_hash is ", hash, "." );
-  //ftl::vector<int> keys;
-  //keys.reserve( 100000000 );
-  //for( int i{ 0 }; i < 100000000; ++i ) keys.push_back( i );
+
   const ftl::vector<std::string> keys = load_dict( "engdict.txt" );
   ftl::vector<int> int_keys;
   int_keys.reserve( 10000000 );
@@ -50,7 +46,7 @@ int main() {
   assert( hm.capacity( ) >= 100 );
   assert( hm.begin( ) == hm.end( ) );
   assert( hm.cbegin( ) == hm.cend( ) );
-  hm.reserve( keys.size( ) );
+  hm.reserve( (uint32_t)keys.size( ) );
   assert( hm.capacity( ) >= keys.size( ) );
   for( auto &it : keys ) {
     hm.insert( { it, 0 } );
@@ -58,7 +54,20 @@ int main() {
   assert( hm.size( ) == keys.size( ) );
   std::vector<int> vi;
   for( auto &it : keys ) {
-    hm[ it ] = it.size( );
+    hm[ it ] = ( int )it.size( );
+  }
+
+  for( size_t i{ 0 }; i < 1000; ++i ) {
+    hm.erase( keys[ i ] );
+  }
+  for( size_t i{ 0 }; i < 1000; ++i ) {
+    assert(hm.find( keys[ i ] ) == hm.end( ));
+  }
+  for( size_t i{ 0 }; i < 1000; ++i ) {
+    assert( hm.find_fast( keys[ i ] ) == hm.end( ) );
+  }
+  for( auto &it : hm ) {
+    assert( it.first.size( ) == it.second );
   }
 
   system( "pause" );

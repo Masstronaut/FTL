@@ -37,7 +37,7 @@ namespace ftl {
     static pointer address( reference x ) noexcept {
       return reinterpret_cast<pointer>( &reinterpret_cast<char&>( x ) );
     }
-    const_pointer address( const_reference x ) const noexcept {
+    static const_pointer address( const_reference x ) noexcept {
       return reinterpret_cast<const_pointer>( &reinterpret_cast<const char&>( x ) );
     }
     pointer allocate(size_type n, const void * hint = 0) {

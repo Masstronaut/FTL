@@ -8,6 +8,7 @@
 #include <memory> // allocator traits
 #include <utility> // std::declval
 #include <cstdint> // uint32_t
+#include <iterator> // std::advance
 #include "allocator.hpp"
 #include "vector.hpp"
 namespace ftl {
@@ -86,8 +87,8 @@ namespace ftl {
 
 
     // capacity
-    size_type empty( ) const noexcept { return m_values.empty( ); }
-    size_type size( ) const noexcept { return m_values.size( ); }
+    size_type empty( ) const noexcept { return ( size_type )m_values.empty( ); }
+    size_type size( ) const noexcept { return ( size_type )m_values.size( ); }
     size_type max_size( ) const noexcept {
       //@@TODO: update this to support other allocation strategies (like power 2)
       return ::ftl::detail::hash_table_primes[ sizeof(::ftl::detail::hash_table_primes) 
@@ -95,7 +96,7 @@ namespace ftl {
                                              - 1u ];
     }
     size_type capacity( ) const noexcept { 
-      return static_cast<float>( m_capacity + max_probe_count() ) * m_max_load_factor; 
+      return static_cast< size_type >( static_cast< float >( m_capacity + max_probe_count( ) ) * m_max_load_factor );
     }
     // iterators
     iterator begin( ) const noexcept { return m_values.begin( ); }
@@ -107,13 +108,15 @@ namespace ftl {
     ::std::pair<iterator, bool> emplace( Args&&... args ) {
       m_values.emplace_back( ::std::forward<Args>( args )... );
       const hash_type hash{ m_hasher( m_values.back( ).first ) };
-      insert_return_type collision{ hash_collision( hash ) };
-      if( collision.second ) {
+      probe_table_iterator collision{ hash_collision( hash ) };
+      if( collision->second ) {
         m_values.pop_back( );
-        return { collision.first, false };
+        auto pos{ m_values.begin( ) };
+        ::std::advance( pos, collision->second );
+        return { pos , false };
       } else {
         insert_hash( m_hashes, { hash, m_values.size( ) - 1 } );
-        return { m_values.end( )--, true };
+        return { m_values.end( ) - 1, true };
       }
     }
     void clear( ) {
@@ -197,10 +200,10 @@ namespace ftl {
     }
 
     void reserve( size_type n ) {
-      if( this->capacity() > n  ) return;
-      m_max_probe_count = static_cast< size_type >( std::log2( n ) );
-      size_type new_size{ ::ftl::detail::next_table_size( n ) };
-      size_type new_capacity{ new_size + max_probe_count( ) };
+      if( this->capacity( ) > n ) return;
+      const size_type new_size{ ::ftl::detail::next_table_size( n * ( 1. / m_max_load_factor ) ) };
+      m_max_probe_count = static_cast< size_type >( std::log2( new_size ) );
+      const size_type new_capacity{ static_cast<size_type>((new_size + max_probe_count( )) * this->m_max_load_factor) };
       decltype(this->m_hashes) hashes( new_capacity, tombstone );
       for(auto &it : m_hashes ){
         if( it != tombstone ) {
@@ -216,9 +219,9 @@ namespace ftl {
       hash_type hash{ m_hasher( key ) };
       size_type index{ hash % m_capacity };
       for( size_type i{ 0 }; i <= max_probe_count( ); ++i ) {
-        hash_type &value{ m_hashes[ index + i ] };
+        hash_entry_type value{ m_hashes.at( index + i ) };
         iterator element{ m_values.begin( ) + value.second };
-        if( value.first == hash && m_key_equal( key, element->first ) ) {
+        if( value.first == hash  && m_key_equal( key, element->first ) ) {
           return element;
         }
       }
@@ -226,25 +229,16 @@ namespace ftl {
     }
 
     const_iterator find( const key_type &key ) const {
-      hash_type hash{ m_hasher( key ) };
-      size_type index{ hash % m_capacity };
-      for( size_type i{ 0 }; i <= max_probe_count( ); ++i ) {
-        hash_type &value{ m_hashes[ index + i ] };
-        const_iterator element{ m_values.cbegin( ) + value.second };
-        if( value.first == hash && m_key_equal( key, element->first ) ) {
-          return element;
-        }
-      }
-      return m_values.cend( );
+      return { this->find( key ) };
     }
 
     iterator find( key_type &&key ) {
       hash_type hash{ m_hasher( key ) };
       size_type index{ hash % m_capacity };
       for( size_type i{ 0 }; i <= max_probe_count( ); ++i ) {
-        hash_type &value{ m_hashes[ index + i ] };
+        hash_entry_type value{ m_hashes.at( index + i ) };
         iterator element{ m_values.begin( ) + value.second };
-        if( value.first == hash && m_key_equal( key, element->first ) ) {
+        if( value.first == hash  && m_key_equal( key, element->first ) ) {
           return element;
         }
       }
@@ -252,16 +246,7 @@ namespace ftl {
     }
 
     const_iterator find( key_type &&key ) const {
-      hash_type hash{ m_hasher( key ) };
-      size_type index{ hash % m_capacity };
-      for( size_type i{ 0 }; i <= max_probe_count( ); ++i ) {
-        hash_type &value{ m_hashes[ index + i ] };
-        const_iterator element{ m_values.cbegin( ) + value.second };
-        if( value.first == hash && m_key_equal( key, element->first ) ) {
-          return element;
-        }
-      }
-      return m_values.cend( );
+      return const_iterator{ this->find( std::forward<key_type>( key ) ) };
     }
 
     // find() version which doesn't perform validation of keys.
@@ -272,10 +257,9 @@ namespace ftl {
       hash_type hash{ m_hasher( key ) };
       size_type index{ hash % m_capacity };
       for( size_type i{ 0 }; i <= max_probe_count( ); ++i ) {
-        hash_type &value{ m_hashes[ index + i ] };
-        iterator element{ m_values.begin( ) + value.second };
+        hash_entry_type value{ m_hashes.at( index + i ) };
         if( value.first == hash ) {
-          return element;
+          return { m_values.begin( ) + value.second };
         }
       }
       return m_values.end( );
@@ -286,16 +270,7 @@ namespace ftl {
     // The cost of this is two unique keys with a hash collision may 
     //   return the wrong value.
     const_iterator find_fast( const key_type &key ) const {
-      hash_type hash{ m_hasher( key ) };
-      size_type index{ hash % m_capacity };
-      for( size_type i{ 0 }; i <= max_probe_count( ); ++i ) {
-        hash_type &value{ m_hashes[ index + i ] };
-        const_iterator element{ m_values.cbegin( ) + value.second };
-        if( value.first == hash ) {
-          return element;
-        }
-      }
-      return m_values.cend( );
+      return { this->find_fast( key ) };
     }
 
     // find() version which doesn't perform validation of keys.
@@ -306,10 +281,9 @@ namespace ftl {
       hash_type hash{ m_hasher( key ) };
       size_type index{ hash % m_capacity };
       for( size_type i{ 0 }; i <= max_probe_count( ); ++i ) {
-        hash_type &value{ m_hashes[ index + i ] };
-        iterator element{ m_values.begin( ) + value.second };
+        hash_entry_type value{ m_hashes.at( index + i ) };
         if( value.first == hash ) {
-          return element;
+          return { m_values.begin( ) + value.second };
         }
       }
       return m_values.end( );
@@ -320,16 +294,7 @@ namespace ftl {
     // The cost of this is two unique keys with a hash collision may 
     //   return the wrong value.
     const_iterator find_fast( key_type &&key ) const {
-      hash_type hash{ m_hasher( key ) };
-      size_type index{ hash % m_capacity };
-      for( size_type i{ 0 }; i <= max_probe_count( ); ++i ) {
-        hash_type &value{ m_hashes[ index + i ] };
-        const_iterator element{ m_values.cbegin( ) + value.second };
-        if( value.first == hash ) {
-          return element;
-        }
-      }
-      return m_values.cend( );
+      return { this->find_fast( std::forward<key_type>( key ) ) };
     }
 
     iterator erase( const_iterator pos );
@@ -341,9 +306,9 @@ namespace ftl {
 
   private:
     using hash_entry_type = std::pair< hash_type, size_type >;
-    using hash_table_type = ftl::vector< hash_entry_type, allocator_type >;
-    using value_table_type = ftl::vector< value_type, typename allocator_type::template rebind<value_type> >;
-    using probe_table_iterator = typename ftl::vector<::std::pair<hash_type, size_type>>::iterator;
+    using hash_table_type = ftl::vector< hash_entry_type, typename allocator_type::template rebind<hash_entry_type>>;
+    using value_table_type = ftl::vector< value_type, allocator_type >;
+    using probe_table_iterator = typename hash_table_type::iterator;
     static const hash_entry_type tombstone;
 
     hash_table_type m_hashes;
@@ -365,7 +330,7 @@ namespace ftl {
       size_type index{ hash % m_capacity };
       for( size_type i{ 0 }; i < m_max_probe_count; ++i ) {
         if( m_hashes[ index + i ].first == hash 
-            && m_key_equal( k, m_values[ m_hashes[ index + i ].first ] ) )
+            && this->m_key_equal( k, m_values[ m_hashes[ index + i ].second ].first ) )
           return { m_hashes.begin( ) + ( index + i ) };
       }
       return m_hashes.end( );
@@ -380,7 +345,7 @@ namespace ftl {
     }
 
     void insert_hash( hash_table_type &vec, std::pair<hash_type, size_type> hash ) {
-      size_type index{ hash % m_capacity };
+      size_type index{ hash.first % m_capacity };
       unsigned probe_count{ 0 };
       while( probe_count <= m_max_probe_count && vec[ index + probe_count ] != tombstone ) {
         unsigned distance_from_optimal{ vec[ index + probe_count ].first % m_capacity };
@@ -396,7 +361,7 @@ namespace ftl {
         assert( false && "An internal error has occurred. Please file a report with the FTL project on github.com/masstronaut/FTL " );
       }
     }
-    void erase_hash( ftl::vector< std::pair<hash_type, size_type>, allocator_type > &vec, hash_type hash ) {
+    void erase_hash( hash_table_type &vec, hash_type hash ) {
 
     }
   };
@@ -411,18 +376,25 @@ namespace ftl {
     assert( pos != this->end( ) );
     hash_type hash{ this->m_hasher( pos->first ) };
     auto hash_iter{ probe_key( pos->first ) };
-    probe_table_iterator replacement_hash_iter{ probe_key( this->m_values.back( ) ) };
-    replacement_hash_iter->second = ::std::distance( m_values.begin( ), pos );
-    ::std::swap( *pos, this->m_values.back( ) );
+    probe_table_iterator replacement_hash_iter{ probe_key( this->m_values.back( ).first ) };
+    replacement_hash_iter->second = ::std::distance( m_values.cbegin( ), pos );
+    iterator it{ m_values.get_iterator( *pos ) };
+    it->~value_type( );
+    new( it ) ::std::pair<const Key, Value>( this->m_values.back( ) );
     this->m_values.pop_back( );
     this->erase_hash( this->m_hashes, hash );
-    return pos;
+    return it;
   }
 
 
   template< typename Key, typename Value, typename Hash, typename KeyEqual, typename Allocator >
   typename hash_map<Key, Value, Hash, KeyEqual, Allocator>::size_type hash_map<Key, Value, Hash, KeyEqual, Allocator>::erase( const key_type &key ) {
-    return erase( find( key ) );
+    iterator it{ find( key ) };
+    if( it == this->end( ) ) {
+      return 0;
+    }
+    this->erase( it );
+    return 1;
   }
 
 

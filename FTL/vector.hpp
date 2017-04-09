@@ -65,10 +65,10 @@ namespace ftl {
     const_reverse_iterator crbegin( ) const noexcept;
     const_reverse_iterator crend( ) const noexcept;
 
-    iterator get_iterator( const value_type &val ) const noexcept;
-    const_iterator get_const_iterator( const value_type &value ) const noexcept;
-    iterator get_iterator( const value_type *val ) const noexcept;
-    const_iterator get_const_iterator( const value_type *value ) const noexcept;
+    iterator get_iterator( const_reference val ) const noexcept;
+    const_iterator get_const_iterator( const_reference value ) const noexcept;
+    iterator get_iterator( const_pointer val ) const noexcept;
+    const_iterator get_const_iterator( const_pointer value ) const noexcept;
 
     // Modifiers
     void push_back( const T &data );
@@ -359,14 +359,14 @@ namespace ftl {
 
   template<typename T, typename Alloc>
   typename vector<T, Alloc>::iterator vector<T, Alloc>::get_iterator( const_reference value ) const noexcept {
-    const_pointer addr{ allocator_type::address( value ) };
+    const_pointer addr{ Alloc::address( value ) };
     return get_iterator( addr );
   }
   template<typename T, typename Alloc>
   typename vector<T, Alloc>::iterator vector<T, Alloc>::get_iterator( const_pointer value ) const noexcept {
     if( value < m_begin ) return this->end( );
     else if( value >= m_end ) return this->end( );
-    else return this->begin( ) + ::std::distance( m_begin, value );
+    else return this->begin( ) + ::std::distance( this->cbegin( ), value );
   }
   template<typename T, typename Alloc>
   typename vector<T, Alloc>::const_iterator vector<T, Alloc>::get_const_iterator( const_reference value ) const noexcept {

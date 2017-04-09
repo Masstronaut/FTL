@@ -199,6 +199,7 @@ profile_results profile_hasher( const ftl::vector<T>& keys, size_t iterations = 
   ret.name = typeid( hasher ).name( );
   return ret;
 }
+/*
 #include <fstream>
 ftl::vector<std::string> load_dict( const std::string& path ) {
   ftl::vector<std::string> words;
@@ -240,3 +241,4 @@ int main3() {
   system( "pause" );
   return 0;
 }
+*/
