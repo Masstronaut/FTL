@@ -11,6 +11,7 @@
 #include <iterator> // std::advance
 #include "allocator.hpp"
 #include "vector.hpp"
+#include "hash.hpp"
 namespace ftl {
 
   namespace detail {
@@ -60,9 +61,9 @@ namespace ftl {
   */
   template<typename Key,
     typename Value,
-    typename Hash = ::std::hash<Key>,
+    typename Hash = ::ftl::hash<Key, ::ftl::ftlhash<uint64_t>>,
     typename KeyEqual = ::std::equal_to<Key>,
-    typename Allocator = ftl::default_allocator< ::std::pair<const Key, Value> >
+    typename Allocator = ::ftl::default_allocator< ::std::pair<const Key, Value> >
   >
   class hash_map {
   public:
@@ -108,15 +109,16 @@ namespace ftl {
     ::std::pair<iterator, bool> emplace( Args&&... args ) {
       m_values.emplace_back( ::std::forward<Args>( args )... );
       const hash_type hash{ m_hasher( m_values.back( ).first ) };
-      probe_table_iterator collision{ hash_collision( hash ) };
-      if( collision->second ) {
+      // @@TODO: Add a find overload (possibly private) which takes a hash as well.
+      iterator collision{ this->find( m_values.back( ).first ) };
+      if( collision != this->end( ) ) {
         m_values.pop_back( );
         auto pos{ m_values.begin( ) };
         ::std::advance( pos, collision->second );
         return { pos , false };
       } else {
         insert_hash( m_hashes, { hash, m_values.size( ) - 1 } );
-        return { m_values.end( ) - 1, true };
+        return { m_values.get_iterator( m_values.back( ) ), true };
       }
     }
     void clear( ) {
@@ -204,7 +206,7 @@ namespace ftl {
       const size_type new_size{ ::ftl::detail::next_table_size( n * ( 1. / m_max_load_factor ) ) };
       m_max_probe_count = static_cast< size_type >( std::log2( new_size ) );
       const size_type new_capacity{ static_cast<size_type>((new_size + max_probe_count( )) * this->m_max_load_factor) };
-      decltype(this->m_hashes) hashes( new_capacity, tombstone );
+      decltype(this->m_hashes) hashes( new_capacity / m_max_load_factor, tombstone );
       for(auto &it : m_hashes ){
         if( it != tombstone ) {
           insert_hash( hashes, it );
@@ -339,25 +341,32 @@ namespace ftl {
     probe_table_iterator hash_collision( hash_type hash ) {
       size_type index{ hash % m_capacity };
       for( size_type i{ 0 }; i < m_max_probe_count; ++i ) {
-        if( m_hashes[ index + i ].first == hash ) return { m_hashes.begin() + (index + i) };
+        if( m_hashes[ index + i ].first == hash ) {
+          return { m_hashes.begin() + (index + i) };
+        }
       }
       return m_hashes.end( );
     }
 
-    void insert_hash( hash_table_type &vec, std::pair<hash_type, size_type> hash ) {
+    void insert_hash( hash_table_type &vec, hash_entry_type hash ) {
       size_type index{ hash.first % m_capacity };
       unsigned probe_count{ 0 };
-      while( probe_count <= m_max_probe_count && vec[ index + probe_count ] != tombstone ) {
-        unsigned distance_from_optimal{ vec[ index + probe_count ].first % m_capacity };
-        if( distance_from_optimal < probe_count ) {
-          std::swap( vec[ index + probe_count ], hash );
-          probe_count = distance_from_optimal;
-        } 
+      while( probe_count <= m_max_probe_count ) {
+        hash_entry_type &cur_entry{ vec[ index + probe_count ] };
+        if( cur_entry == tombstone ) {
+          cur_entry = hash;
+          return;
+        }
+        difference_type other_index{ cur_entry.first % m_capacity };
+        unsigned other_probe_count{ (index + probe_count) - other_index };
+        if( other_probe_count < probe_count ) {
+          ::std::swap( cur_entry, hash );
+          probe_count = other_probe_count;
+          index = other_index;
+        }
         ++probe_count;
       }
-      if( vec[ index + probe_count ] == tombstone ) {
-        vec[ index + probe_count ] = hash;
-      } else if (probe_count > m_max_probe_count ) {
+      if (probe_count > m_max_probe_count ) {
         assert( false && "An internal error has occurred. Please file a report with the FTL project on github.com/masstronaut/FTL " );
       }
     }
