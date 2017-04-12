@@ -22,19 +22,19 @@ namespace ftl {
     using time_point = std::chrono::high_resolution_clock::time_point;
 
   public:
-    scope_timer( T* result ) : m_start( std::chrono::high_resolution_clock::now( ) ), m_result( result ) { }
-
+    scope_timer( T* result ) : m_start( std::chrono::high_resolution_clock::now( ) ), m_result( *result ) { }
+    scope_timer( T& result ) : m_start( ::std::chrono::high_resolution_clock::now( ) ), m_result( result ) { }
     ~scope_timer( ) {
       // The divide is necessary because the CPU frequency acquired with Ticks() isn't known at compile time.
       Tsec elapsed{ std::chrono::high_resolution_clock::now( ) - m_start };
-      *m_result = elapsed.count( );
+      m_result = elapsed.count( );
     }
   private:
     // start and end time stamps
     time_point m_start;
 
     // Storage location for the elapsed time.
-    double * m_result;
+    double &m_result;
   };
 
   template<typename T>

@@ -217,39 +217,40 @@ namespace ftl {
       m_capacity = new_size;
     }
 
-    iterator find( const key_type &key ) {
-      hash_type hash{ m_hasher( key ) };
-      size_type index{ hash % m_capacity };
+    iterator find( const key_type &key, hash_type hint ) {
+      return const_cast< iterator >( 
+        const_cast< const hash_map < Key, Value, Hash, KeyEqual, Allocator> *>
+        (this)->find( key, hint ) );
+    }
+
+    const_iterator find( const key_type &key, hash_type hint ) const {
+      size_type index{ hint % m_capacity };
       for( size_type i{ 0 }; i <= max_probe_count( ); ++i ) {
         hash_entry_type value{ m_hashes.at( index + i ) };
-        iterator element{ m_values.begin( ) + value.second };
-        if( value.first == hash  && m_key_equal( key, element->first ) ) {
+        const_iterator element{ m_values.cbegin( ) + value.second };
+        if( value.first == hint  && m_key_equal( key, element->first ) ) {
           return element;
         }
       }
-      return m_values.end( );
+      return m_values.cend( );
+    }
+
+    iterator find( const key_type &key ) {
+      return find( key, m_hasher( key ) );
     }
 
     const_iterator find( const key_type &key ) const {
-      return { this->find( key ) };
+      return this->find( key, m_hasher( key ) );
     }
 
     iterator find( key_type &&key ) {
-      hash_type hash{ m_hasher( key ) };
-      size_type index{ hash % m_capacity };
-      for( size_type i{ 0 }; i <= max_probe_count( ); ++i ) {
-        hash_entry_type value{ m_hashes.at( index + i ) };
-        iterator element{ m_values.begin( ) + value.second };
-        if( value.first == hash  && m_key_equal( key, element->first ) ) {
-          return element;
-        }
-      }
-      return m_values.end( );
+      return this->find( key, m_hasher( key ) );
     }
 
     const_iterator find( key_type &&key ) const {
-      return const_iterator{ this->find( std::forward<key_type>( key ) ) };
+      return this->find( key, m_hasher(key) );
     }
+
 
     // find() version which doesn't perform validation of keys.
     // By omitting the key compare, speed is improved substantially.
